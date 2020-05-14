@@ -1,0 +1,408 @@
+% !TeX encoding = UTF-8
+% !TeX spellcheck = pl_PL
+
+% $Id:$
+
+%Author: Wojciech Domski
+%Szablon do ząłożeń projektowych, raportu i dokumentacji z steorwników robotów
+%Wersja v.1.0.0
+%
+
+
+%% Konfiguracja:
+\newcommand{\kurs}{Sterowniki robot\'{o}w}
+\newcommand{\formakursu}{Projekt}
+
+%odkomentuj właściwy typ projektu, a pozostałe zostaw zakomentowane
+\newcommand{\doctype}{Za\l{}o\.{z}enia projektowe} %etap I
+%\newcommand{\doctype}{Raport} %etap II
+%\newcommand{\doctype}{Dokumentacja} %etap III
+
+%wpisz nazwę projektu
+\newcommand{\projectname}{Joystick}
+
+%wpisz akronim projektu
+\newcommand{\acronim}{SteRoP\_2020\_J\_MKEZ\_1.pdf}
+
+%wpisz Imię i nazwisko oraz numer albumu
+\newcommand{\osobaA}{Mateusz \textsc{Kobak}, 241502}
+%w przypadku projektu jednoosobowego usuń zawartość nowej komendy
+\newcommand{\osobaB}{Ewa \textsc{Zi\k{e}tek}, 241479}
+
+%wpisz termin w formie, jak poniżej dzień, parzystość, godzina
+\newcommand{\termin}{ptTP11}
+
+%wpisz imię i nazwisko prowadzącego
+\newcommand{\prowadzacy}{dr in\.{z}. Wojciech \textsc{Domski}}
+
+\documentclass[10pt, a4paper]{article}
+
+\include{preambula}
+	
+\begin{document}
+
+\def\tablename{Tabela}	%zmienienie nazwy tabel z Tablica na Tabela
+
+\begin{titlepage}
+	\begin{center}
+		\textsc{\LARGE \formakursu}\\[1cm]		
+		\textsc{\Large \kurs}\\[0.5cm]		
+		\rule{\textwidth}{0.08cm}\\[0.4cm]
+		{\huge \bfseries \doctype}\\[1cm]
+		{\huge \bfseries \projectname}\\[0.5cm]
+		{\huge \bfseries \acronim}\\[0.4cm]
+		\rule{\textwidth}{0.08cm}\\[1cm]
+		
+		\begin{flushright} \large
+		\emph{Skład grupy:}\\
+		\osobaA\\
+		\osobaB\\[0.4cm]
+		
+		\emph{Termin: }\termin\\[0.4cm]
+
+		\emph{Prowadzący:} \\
+		\prowadzacy \\
+		
+		\end{flushright}
+		
+		\vfill
+		
+		{\large \today}
+	\end{center}	
+\end{titlepage}
+
+\newpage
+\tableofcontents
+\newpage
+
+%Obecne we wszystkich dokumentach
+\section{Opis projektu}
+\label{sec:OpisProjektu}
+
+Głównym celem projektu jest stworzenie Joystick na bazie mikrokontrolera STM32F103. Założeniem jest aby uniwersalnym urządzeniem można było sterować różnymi robotami przez interfejs Bluetooth lub WIFI. oraz tradycyjnie obsługiwać komputer poprzez interfejs USB jako joystick lub jako mysz, ma on posiadać niżej opisane funkcjonalności:
+\begin{itemize}
+	\item Baterie do pracy bez zasilania przewodowego.
+	\item Zintegrowaną ładowarkę i kontrolę napięcia baterii.
+	\item Gałkę precyzyjną i  szereg przycisków do kontroli i sterowania.
+	\item Akcelerometr do różnego rodzaju kontroli czy będąc jako kolejna “gałka joysticka”.
+	\item Interfejs USB umożliwiający podłączenie do komputera jako urządzenie HID jak i ładowanie samego urządzenia.
+	\item Moduł Bluetooth i WIFI umożliwiający implementację sterowania różnego rodzaju robotami.
+\end{itemize}
+Krótki opis projektu czego będzie on dotyczył.
+
+W przypadku, gdy projekt dotyczy systemu 
+wielomodułowego należy dołączyć diagram, który będzie prezentował
+architekturę systemu:
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.5\textwidth]{figures/obraz.png}
+	\caption{Architektura systemu}
+	\label{fig:Architektura}
+\end{figure}
+
+%Obecne we wszystkich dokumentach
+\section{Konfiguracja mikrokontrolera}
+
+Tutaj powinna znaleźć się konfigurację poszczególnych peryferiów 
+mikrokontrolera -- jeśli wykorzystywany jest np. ADC to należy 
+podać jego konfigurację nie zapominając o DMA jeśli jest 
+wykorzystywane. Proszę wzorować się na raporcie wygenerowanym 
+z programu STM32CubeMx 
+(plik PDF i TXT, Project -> Generate Report Ctrl+R). 
+W pliku PDF jest to rozdział \textit{IPs} and \textit{Middleware Configuration}. 
+Należy umieścić uproszczoną konfiguracje peryferiów w formie 
+tabelek (najistotniejsze parametry + parametry zmienione, pogrubione).
+Dodatkowo w pliku tekstowym (TXT) znajduje się konfiguracja pinów 
+mikrokontrolera, którą również należy zamieścić w raporcie.
+
+W przypadku, gdy projekt zakłada wykorzystanie większej liczby modułów
+sekcję tą należy podzielić na odrębne podsekcje.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.8\textwidth]{figures/obraz.png}
+	\caption{Konfiguracja wyjść mikrokontrolera w programie STM32CubeMX}
+	\label{fig:KonfiguracjaMikrokontrolera}
+\end{figure}
+
+\newpage
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.9\textheight,angle=90]{figures/obraz.png}
+	\caption{Konfiguracja zegarów mikrokontrolera}
+	\label{fig:KonfiguracjaZegara}
+\end{figure}
+
+%Obecne we wszystkich dokumentach
+\subsection{Konfiguracja pinów}
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|l|l|l|l|}
+		\hline
+		Numer pinu	&	PIN & Tryb pracy & Funkcja/etykieta\\
+		\hline
+		2&	PC13 & ANTI\_TAMP	GPIO\_EXTI13	&B1 [Blue PushButton]\\
+		3&	PC14 & OSC32\_IN*	RCC\_OSC32\_IN	&\\
+		4&	PC15 & OSC32\_OUT*	RCC\_OSC32\_OUT	&\\
+		5&	PH0&  OSC\_IN*	RCC\_OSC\_IN	&\\
+		6&	PH1&  OSC\_OUT*&		RCC\_OSC\_OUT	\\
+		16&	PA2&	USART2\_TX&	USART\_TX\\
+		17&	PA3&	USART2\_RX&	USART\_RX\\
+		21&	PA5&	GPIO\_Output&	LD2 [Green Led]\\
+		29&	PB10&	I2C2\_SCL&	I2C\_SCL\\
+		41&	PA8&	TIM1\_CH1&	PWM1\\
+		46&	PA13*&	SYS\_JTMS-SWDIO&	TMS\\
+		49&	PA14*&	SYS\_JTCK-SWCLK&	TCK\\
+		55&	PB3*&	SYS\_JTDO-SWO&	SWO\\
+		62&	PB9&	I2C2\_SDA&	I2C\_SCL\\
+		\hline
+	\end{tabular}
+	\caption{Konfiguracja pinów mikrokontrolera}
+	
+\end{table}
+
+%Obecne we wszystkich dokumentach
+\subsection{USART}
+
+Przykładowa konfiguracja peryferium interfejsu szeregowego.
+Należy opisać do czego będzie wykorzystywany interfejs. 
+Zmiany, które odbiegają od standardowych w programie CubeMX 
+powinn być zaznaczone innym kolorem, jak to zostało pokazane 
+w tabeli \ref{tab:USART}.
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|l|c|} \hline
+		\textbf{Parametr} & Wartość \\
+		\hline
+		\hline  \textbf{Baud Rate}&11520  \\\hline
+		\textbf{Word Length } & \textcolor{blue}{8 Bits (including parity)}\\\hline
+		\textbf{Parity} &  None\\
+		\hline
+		\textbf{Stop Bits}& 1\\
+		\hline
+	\end{tabular}
+	\caption{Konfiguracja peryferium USART}
+	\label{tab:USART}
+\end{table}
+
+%Obecne w dokumencie do etapu II oraz III
+%\section{Urządzenia zewnętrzne}
+
+%Rozdział ten powinien zawierać opis i konfigurację wykorzystanych ukladów
+%zewnętrznych, jak np. akcelerometr.
+
+%Obecne w dokumencie do etapu II oraz III
+%\subsection{Akcelerometr -- LSM303C}
+
+%Akcelerometr został wykorzystany do ...
+
+%Konfiguracja rejestrów czujnika została zaprezentowana w ...
+%Wpisanie tych wartości do rejestrów urządzenia ... powoduje ...
+
+%\begin{table}[H]
+%	\centering
+%	\begin{tabular}{|l|c|} \hline
+%		\textbf{Rejestr} & Wartość \\
+%		\hline
+%		\hline
+%		CTRL\_REG2 (0x21) & 0x12\\\hline
+%		CTRL\_REG3 (0x22) & 0x13\\\hline
+%	\end{tabular}
+%	\caption{Konfiguracja peryferium USART}
+%	\label{tab:Akcelerometr}
+%\end{table}
+
+%Obecne w dokumencie do etapu II oraz III
+%\section{Projekt elektroniki}
+
+%W przypadku, w którym projekt uwzględnia zastosowanie 
+%dodatkowej elektroniki to wówczas jej opis powinien znaleźć się tutaj.
+%Należy dołączyć schematy elektroniczne w formacie PDF 
+%jako dodatek do dokumentu 
+%za pomocą \textit{include}. Również w przypadku wytworzenia 
+%płytek PCB powinny znaleźć się tutaj ich widoki za zachowaniem skali.
+%Można również dołączyć zdjęcia 
+%elektroniki po uprzednim skompresowaniu, aby wynikowy rozmiar 
+%skompilowanego dokumentu nie był za duży.
+
+%Obecne w dokumencie do etapu II oraz III
+%\section{Konstrukcja mechaniczna}
+
+%W przypadku, w którym projekt uwzględnia zastosowanie 
+%mechaniki to wówczas jej opis powinien znaleźć się tutaj.
+%Nie należy dzielić rysunków mechaniki na poszczególne rzuty, 
+%wystarczy zamieścić wyrenderowane modele 3D.
+%Można również dołączyć zdjęcia wykonanej 
+%mechaniki po uprzednim skompresowaniu, aby wynikowy rozmiar 
+%skompilowanego dokumentu nie był za duży.
+
+%Obecne w dokumencie do etapu II oraz III
+%\section{Opis działania programu}
+
+%Należy zawrzeć tutaj opis działania programu.
+%Mile widziany diagram prezentujący pracę programu.
+
+%\begin{figure}[H]
+%	\centering
+%	\includegraphics[width=0.5\textwidth]{figures/obraz.png}
+%	\caption{Diagram przepływu}
+%	\label{fig:Program}
+%\end{figure}
+
+%Sekcję tą można podzielić na dodatkowe podsekcje w miarę potrzeb. 
+%Do tego celu nalezy wykorzystać \textit{subsection}.
+
+%W przypadku, dodania istotnego fragmentu kodu należy posłużyć się środowiskiem 
+%lstlisting:
+
+%\begin{lstlisting}[tabsize=2]
+%int foo(void){
+%return 2;
+%}
+%\end{lstlisting}
+
+%Przykładowy wzór (\ref{eq:Wzor}):
+%\begin{equation}
+%\label{eq:Wzor}
+%\Theta = \int_t^{t+dt} \omega \, dt.	
+%\end{equation}
+
+%Przykładowa pozycja bibliograficzna \cite{SR01} znajduje się 
+%w pliku bibliografia.bib.
+
+%Obecne w dokumencie do etapu I
+\section{Harmonogram pracy}
+
+Należy wstawić diagram Gantta oraz określić ścieżkę 
+krytyczną. Ponadto zaznaczyć i opisać kamienie milowe.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=1\textwidth]{figures/WykresGannta.png}
+	\caption{Diagram Gantta}
+	\label{fig:DiagramGantta}
+\end{figure}
+
+%Obecne w dokumencie do etapu I
+\subsection{Podział pracy}
+
+%\textbf{Każdy z członków grupy powinien w każdym etapie mieć wymienione od 2 do 4 zadań.}
+%Przykładowa tabele podziału zadań dla etapu II 
+%(Tab. \ref{tab:PodzialPracyEtap2}) oraz dla etapu III 
+%(Tab. \ref{tab:PodzialPracyEtap3})
+%zostały przedstawione poniżej. 
+%Przy podziale prac nie uwzględniamy tworzenia dokumentacji projektu!
+
+%Przykładowy podział prac dla projektu pod tytułem 
+%"Automatyczny dyktafon rozmowy":
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|L{7cm}|L{0.8cm}||L{7cm}|L{0.8cm}|}
+		\hline
+		\hline
+		\textbf{Mateusz Kobak} & 
+		\% & 
+		\textbf{Ewa Ziętek} & \%\\
+		\hline
+		\hline
+			Dobranie odpowiednich komponentów	& &	
+	 Dobranie odpowiednich komponentów &\\
+		\hline
+		Zaprojektowanie schematu i PCB & &
+ &\\
+		\hline
+			 & &
+		Wykonanie PCB i montaż & \\
+		\hline
+%		 & & &\\
+%		\hline
+	\end{tabular}
+	\caption{Podział pracy -- Etap II}
+	\label{tab:PodzialPracyEtap2}
+\end{table}
+
+\begin{table}[H]
+	\centering
+	\begin{tabular}{|L{7cm}|L{0.8cm}||L{7cm}|L{0.8cm}|}
+		\hline
+		\hline
+		\textbf{Mateusz Kobak} & 
+		\% & 
+		\textbf{Ewa Ziętek} & \%\\
+		\hline
+		\hline
+	Zaprojektowanie obudowy		& &	
+		Program mikrokontrolera &\\
+		\hline
+	Implementacja HID  & &
+		Druk obudowy i wykończenie &\\
+		\hline
+
+	\end{tabular}
+	\caption{Podział pracy -- Etap III}
+	\label{tab:PodzialPracyEtap3}
+\end{table}
+
+%Obecne w dokumencie do etapu II oraz III (jeśli coś zostało niezrealizowane)
+%\section{Zadania niezrealizowane}
+
+%Jeśli wszystkie zadania zostały realizowane to wówczas 
+%ta sekcja powinna być usunięta w całości. W przeciwnym razie
+%należy zawrzeć tutaj, jakie zadania zostały nie zrealizowane 
+%oraz jaka była tego przyczyna.
+
+%Obecne we wszystkich dokumentach
+\section{Podsumowanie}
+
+Urządzenie jest modułowe, więc ewentualna wymiana uszkodzonych elementów będzie łatwa. Drukowaną obudowę można łatwo powielić i wymienić. Budowa Joystick'a jest niedroga, tanim kosztem można zbudować ich więcej.
+
+\newpage
+\addcontentsline{toc}{section}{Bibilografia}
+\bibliography{bibliografia}
+\bibliographystyle{plabbrv}
+
+
+\end{document}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
