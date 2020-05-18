@@ -127,8 +127,15 @@ void Serial_Recived(uint8_t* Buf, uint32_t *Len){
 		break;
 	}
 	default: {
-		Flag[4] = 1;
-		BadFunc = Buf[0];
+		if (Buf[0] >= 128){
+			RF_TxData[0] = Buf[0];
+			for (int a = 1; a < *Len; a ++){
+				RF_TxData[a] = Buf[a];
+			}
+		}else {
+			Flag[4] = 1;
+			BadFunc = Buf[0];
+		}
 	}
 	}
 }

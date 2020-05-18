@@ -44,8 +44,8 @@ stm_nrf.bin \
 all: stm_nrf.elf secondary-outputs
 
 # Tool invocations
-stm_nrf.elf: $(OBJS) $(USER_OBJS) D:\1.Projects\2.Konsola\1.Joystick\ v2\1.Program\NRF\STM32F103CBTX_FLASH.ld
-	arm-none-eabi-gcc -o "stm_nrf.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"D:\1.Projects\2.Konsola\1.Joystick v2\1.Program\NRF\STM32F103CBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm_nrf.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+stm_nrf.elf: $(OBJS) $(USER_OBJS) D:\0.GitProjects\JoDo\1.Program\NRF\STM32F103CBTX_FLASH.ld
+	arm-none-eabi-gcc -o "stm_nrf.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m3 -T"D:\0.GitProjects\JoDo\1.Program\NRF\STM32F103CBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="stm_nrf.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
