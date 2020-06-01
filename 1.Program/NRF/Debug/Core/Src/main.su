@@ -1,0 +1,17 @@
+main.c:48:6:Serial_Recived	32	static
+main.c:143:5:Serial_Send	16	static
+main.c:153:13:wait_for_gpio_state_timeout	32	static,ignoring_inline_asm
+main.c:177:13:I2C_ClearBusyFlagErratum	32	static,ignoring_inline_asm
+main.c:373:8:MapValue	32	static
+main.c:377:8:MapValue2	40	static
+main.c:387:5:main	152	static
+main.c:695:6:SystemClock_Config	88	static
+main.c:741:13:MX_ADC1_Init	24	static
+main.c:786:13:MX_I2C1_Init	8	static
+main.c:820:13:MX_I2C2_Init	8	static
+main.c:854:13:MX_SPI1_Init	8	static
+main.c:892:13:MX_TIM3_Init	48	static
+main.c:941:13:MX_USART1_UART_Init	8	static
+main.c:974:13:MX_USART2_UART_Init	8	static
+main.c:1007:13:MX_GPIO_Init	40	static
+main.c:1063:6:Error_Handler	4	static
