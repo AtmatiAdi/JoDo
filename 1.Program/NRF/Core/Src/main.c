@@ -22,6 +22,8 @@
 #include "usb_device.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "usbd_custom_hid_if.h"
+#include "usbd_customhid.h"
 #include "ssd1306.h"
 #include "i2c-lcd.h"
 #include "string.h"
@@ -416,8 +418,9 @@ int main(void)
   MX_TIM3_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
-  MX_USB_DEVICE_Init();
+  //MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
+  HID_USB_DEVICE_Init();
 
   I2C_ClearBusyFlagErratum(&hi2c1, 1000);
   __HAL_RCC_I2C1_FORCE_RESET();

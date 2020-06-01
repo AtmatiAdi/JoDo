@@ -55,7 +55,18 @@ USBD_HandleTypeDef hUsbDeviceFS;
  * -- Insert your external function declaration here --
  */
 /* USER CODE BEGIN 1 */
+void HID_USB_DEVICE_Init(void)
+{
+  /* Init Device Library,Add Supported Class and Start the library*/
+  USBD_Init(&hUsbDeviceFS, &FS_Desc, DEVICE_FS);
 
+  USBD_RegisterClass(&hUsbDeviceFS, &USBD_CUSTOM_HID);
+
+  USBD_CUSTOM_HID_RegisterInterface(&hUsbDeviceFS, &USBD_CustomHID_fops_FS);
+
+  USBD_Start(&hUsbDeviceFS);
+
+}
 /* USER CODE END 1 */
 
 /**
