@@ -57,14 +57,13 @@
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN PFP */
-
 /* USER CODE END PFP */
 
 /*
  * -- Insert your variables declaration here --
  */
 /* USER CODE BEGIN VARIABLES */
-
+ extern USBD_HandleTypeDef hUsbDeviceFS;
 /* USER CODE END VARIABLES */
 /**
   * @}
@@ -82,7 +81,7 @@ void MX_USB_DEVICE_Init(void);
  * -- Insert functions declaration here --
  */
 /* USER CODE BEGIN FD */
-
+void my_MX_USB_DEVICE_Init(void);
 /* USER CODE END FD */
 /**
   * @}

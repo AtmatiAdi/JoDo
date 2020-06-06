@@ -1,10 +1,10 @@
 /**
   ******************************************************************************
-  * File Name          : main.h
-  * Description        : This file contains the common defines of the application
+  * @file           : usbd_custom_hid_if_if.h
+  * @brief          : header file for the usbd_custom_hid_if.c file
   ******************************************************************************
   *
-  * Copyright (c) 2020 STMicroelectronics International N.V. 
+  * Copyright (c) 2017 STMicroelectronics International N.V. 
   * All rights reserved.
   *
   * Redistribution and use in source and binary forms, with or without 
@@ -39,81 +39,95 @@
   * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   *
   ******************************************************************************
-  */
+*/
+
 /* Define to prevent recursive inclusion -------------------------------------*/
-#ifndef __MAIN_H
-#define __MAIN_H
-  /* Includes ------------------------------------------------------------------*/
 
-/* USER CODE BEGIN Includes */
+#ifndef __my_USBD_CUSTOM_HID_IF_H_
+#define __my_USBD_CUSTOM_HID_IF_H_
 
-/* USER CODE END Includes */
+#ifdef __cplusplus
+ extern "C" {
+#endif
+/* Includes ------------------------------------------------------------------*/
+#include "my_usbd_customhid.h"
+/* USER CODE BEGIN INCLUDE */
+/* USER CODE END INCLUDE */
 
-/* Private define ------------------------------------------------------------*/
+/** @addtogroup STM32_USB_OTG_DEVICE_LIBRARY
+  * @{
+  */
+  
+/** @defgroup USBD_CUSTOM_HID
+  * @brief header 
+  * @{
+  */ 
 
-#define LED_Pin GPIO_PIN_13
-#define LED_GPIO_Port GPIOC
-#define CSN_Pin GPIO_PIN_14
-#define CSN_GPIO_Port GPIOC
-#define CE_Pin GPIO_PIN_15
-#define CE_GPIO_Port GPIOC
-#define HORISONTAL_Pin GPIO_PIN_0
-#define HORISONTAL_GPIO_Port GPIOA
-#define VERTICAL_Pin GPIO_PIN_1
-#define VERTICAL_GPIO_Port GPIOA
-#define BT_TX_Pin GPIO_PIN_2
-#define BT_TX_GPIO_Port GPIOA
-#define BT_RX_Pin GPIO_PIN_3
-#define BT_RX_GPIO_Port GPIOA
-#define BAT_Pin GPIO_PIN_4
-#define BAT_GPIO_Port GPIOA
-#define BUZZ_Pin GPIO_PIN_0
-#define BUZZ_GPIO_Port GPIOB
-#define LEFT_BT_Pin GPIO_PIN_1
-#define LEFT_BT_GPIO_Port GPIOB
-#define RIGHT_BT_Pin GPIO_PIN_2
-#define RIGHT_BT_GPIO_Port GPIOB
-#define SCL_IMU_Pin GPIO_PIN_10
-#define SCL_IMU_GPIO_Port GPIOB
-#define SDA_IMU_Pin GPIO_PIN_11
-#define SDA_IMU_GPIO_Port GPIOB
-#define SELECT_Pin GPIO_PIN_12
-#define SELECT_GPIO_Port GPIOB
-#define UP_Pin GPIO_PIN_13
-#define UP_GPIO_Port GPIOB
-#define RIGHT_Pin GPIO_PIN_14
-#define RIGHT_GPIO_Port GPIOB
-#define DOWN_Pin GPIO_PIN_15
-#define DOWN_GPIO_Port GPIOB
-#define LEFT_Pin GPIO_PIN_8
-#define LEFT_GPIO_Port GPIOA
-#define BUTTON_E_Pin GPIO_PIN_15
-#define BUTTON_E_GPIO_Port GPIOA
-#define BUTTON_F_Pin GPIO_PIN_3
-#define BUTTON_F_GPIO_Port GPIOB
-#define VIN_Pin GPIO_PIN_4
-#define VIN_GPIO_Port GPIOB
-#define ON_Pin GPIO_PIN_5
-#define ON_GPIO_Port GPIOB
-#define SCL_Pin GPIO_PIN_6
-#define SCL_GPIO_Port GPIOB
-#define SDA_Pin GPIO_PIN_7
-#define SDA_GPIO_Port GPIOB
-#define POW_BT_Pin GPIO_PIN_8
-#define POW_BT_GPIO_Port GPIOB
-#define MOS_Pin GPIO_PIN_9
-#define MOS_GPIO_Port GPIOB
-/* USER CODE BEGIN Private defines */
-
-/* USER CODE END Private defines */
+/** @defgroup USBD_CUSTOM_HID_Exported_Defines
+  * @{
+  */ 
+/* USER CODE BEGIN EXPORTED_DEFINES */
+/* USER CODE END EXPORTED_DEFINES */
 
 /**
   * @}
   */ 
 
+/** @defgroup USBD_CUSTOM_HID_Exported_Types
+  * @{
+  */  
+/* USER CODE BEGIN EXPORTED_TYPES */
+/* USER CODE END EXPORTED_TYPES */
+
 /**
   * @}
-*/ 
+  */ 
 
-#endif /* __MAIN_H */
+/** @defgroup USBD_CUSTOM_HID_Exported_Macros
+  * @{
+  */ 
+/* USER CODE BEGIN EXPORTED_MACRO */
+/* USER CODE END EXPORTED_MACRO */
+
+/**
+  * @}
+  */ 
+
+/** @defgroup USBD_CUSTOM_HID_Exported_Variables
+  * @{
+  */ 
+  extern USBD_CUSTOM_HID_ItfTypeDef  USBD_CustomHID_fops_FS;
+
+/* USER CODE BEGIN EXPORTED_VARIABLES */
+/* USER CODE END EXPORTED_VARIABLES */
+
+/**
+  * @}
+  */ 
+
+/** @defgroup USBD_CUSTOM_HID_Exported_FunctionsPrototype
+  * @{
+  */ 
+
+/* USER CODE BEGIN EXPORTED_FUNCTIONS */
+//int8_t USBD_CUSTOM_HID_SendReport_FS ( uint8_t *report,uint16_t len);
+/* USER CODE END EXPORTED_FUNCTIONS */
+/**
+  * @}
+  */
+   
+/**
+  * @}
+  */ 
+
+/**
+* @}
+*/
+ 
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __USBD_CUSTOM_HID_IF_H_ */
+
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -108,7 +108,7 @@
 extern USBD_DescriptorsTypeDef FS_Desc;
 
 /* USER CODE BEGIN EXPORTED_VARIABLES */
-
+int DecTrigger;
 /* USER CODE END EXPORTED_VARIABLES */
 
 /**
