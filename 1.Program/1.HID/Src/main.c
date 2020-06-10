@@ -123,6 +123,7 @@ uint8_t Encoder_B = 0;
 
 uint16_t WheelValue = 2048;
 
+
 /*
 uint8_t readA(){ return HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_3); }
 uint8_t readB(){ return HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4); }

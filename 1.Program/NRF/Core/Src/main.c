@@ -22,6 +22,9 @@
 #include "usb_device.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "my_usbd_customhid.h"
+#include "my_usbd_custom_hid_if.h"
+
 #include "ssd1306.h"
 #include "i2c-lcd.h"
 #include "string.h"
@@ -40,105 +43,17 @@ char ADSwrite[6];
 
 char Msg[16];
 char Flag[8] = {0,0,0,0,0,0,0,0};
+int IsHID = 0;
 RawData_Def AccelData, GyroData;
 
 uint64_t PipeAddres = 0x11223344AA;
 char RF_RxData[32], RF_TxData[32], BadFunc;
 
-void Serial_Recived(uint8_t* Buf, uint32_t *Len){
-	switch(Buf[0]){
-	case '0': {
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, 1);
-		Msg[0] = 'O';
-		Msg[1] = 'N';
-		Serial_Send(Msg, 2);
-		break;
-	}
-	case '1': {
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, 0);
-		Msg[0] = 'O';
-		Msg[1] = 'F';
-		Serial_Send(Msg, 2);
-		break;
-	}
-	case '2': {
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, 0);
-		Msg[0] = FUNC_ACCEL_GYRO_DATA;
-		Serial_Send(Msg, 1);
-		break;
-	}
-	case '3': {
-		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, 0);
-		int16_t Ax = 1024;
-		int16_t Ay = -1024;
-		int16_t Az = 32767;
-		int16_t Gx = -32767;
-		int16_t Gy = 255;
-		int16_t Gz = -255;
-		Msg[0] = FUNC_ACCEL_GYRO_DATA;
-		Msg[1] = (char)Ax;
-		Msg[2] = (char)(Ax >> 8);
-		Msg[3] = (char)Ay;
-		Msg[4] = (char)(Ay >> 8);
-		Msg[5] = (char)Az;
-		Msg[6] = (char)(Az >> 8);
-		Msg[7] = (char)Gx;
-		Msg[8] = (char)(Gx >> 8);
-		Msg[9] = (char)Gy;
-		Msg[10] = (char)(Gy >> 8);
-		Msg[11] = (char)Gz;
-		Msg[12] = (char)(Gz >> 8);
+uint8_t dataToSend[20] = {0x00, 0x14, 0x01, 0xEE, 0x0F, 0x00, 0x0F, 0x00, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+//                        butns|size|     |     | lt  | rt  | lx        | ly        | rx        | ry        | unused
+//                                    b10 & b9  & b7  & b8  & dr  & dl  & dd  & du
+//
 
-		Serial_Send(Msg, 13);
-	}
-	case 'a': {
-		Flag[0] = 1;
-		break;
-	}
-	case 'b': {
-		Flag[1] = 1;
-		break;
-	}
-	case 'B': {
-		Flag[1] = 0;
-		break;
-	}
-	case 'c': {
-		Flag[2] = 1;
-		break;
-	}
-	case 'd': {
-		Flag[3] = 1;
-		break;
-	}
-	case 'D': {
-		Flag[3] = 0;
-		break;
-	}
-	case FUNC_JOYSTICK_DATA: {
-		//Flag[4] = 1;
-		//BadFunc = 0;
-		// Funkcja FUNC_JOYSTICK_DATA
-		RF_TxData[0] = FUNC_JOYSTICK_DATA;
-		RF_TxData[1] = Buf[1];
-		RF_TxData[2] = Buf[2];
-		RF_TxData[3] = Buf[3];
-		RF_TxData[4] = Buf[4];
-		break;
-	}
-	default: {
-		if (Buf[0] >= 128){
-			RF_TxData[0] = Buf[0];
-			for (int a = 1; a < *Len; a ++){
-				RF_TxData[a] = Buf[a];
-			}
-		}else {
-			Flag[4] = 1;
-			BadFunc = Buf[0];
-		}
-	}
-	}
-}
 
 int Serial_Send(uint8_t* Buf, uint32_t *Len){
 	CDC_Transmit_FS(Buf, Len);
@@ -378,6 +293,246 @@ double MapValue2(double input, double input_start,double input_end,double output
 	double slope = 1.0 * (output_end - output_start) / (input_end - input_start);
 	return output_start + slope * (input - input_start);
 }
+void updateButtons()
+{
+	  int16_t Val[4];
+	  for (int a = 0; a < 4; a++){
+		  ADSwrite[0] = 0x01;
+		  switch(a){
+		  case 0: {
+			  ADSwrite[1] = 0xC1; // 11000011
+			  break;
+		  }
+		  case 1: {
+			  ADSwrite[1] = 0xD1; // 11010011
+			  break;
+		  }
+		  case 2: {
+			  ADSwrite[1] = 0xE1; // 11100011
+			  break;
+		  }
+		  case 3: {
+			  ADSwrite[1] = 0xF1; // 11110011
+			  break;
+		  }
+		  }
+
+		  __HAL_RCC_I2C1_FORCE_RESET();
+		  __HAL_RCC_I2C1_RELEASE_RESET();
+		  MX_I2C1_Init();
+		  __HAL_RCC_I2C1_FORCE_RESET();
+		  __HAL_RCC_I2C1_RELEASE_RESET();
+		  MX_I2C1_Init();
+
+		  ADSwrite[2] = 0xE3; // 10000011 // 10100011 // 11000011// 11100011
+		  HAL_I2C_Master_Transmit(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 3, 100);
+		  ADSwrite[0] = 0x00;
+		  HAL_I2C_Master_Transmit(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 1, 100);
+		  //HAL_Delay(1);
+		  NRF24_DelayMicroSeconds(100);
+		  HAL_I2C_Master_Receive(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 2, 100);
+
+		  //Msg[1 + a*2] = ADSwrite[1];
+		  //Msg[1 + a*2 + 1] = ADSwrite[0];
+		  Val[a] = (((int16_t)ADSwrite[0]) << 8 | ADSwrite[1]);
+		  //Serial_Send("ELO", 3);
+
+	  }
+
+	  Val[1] = (int16_t)MapValue(Val[1], 0, Val[0], -1023, 1023);
+	  Val[2] = (int16_t)MapValue(Val[2], 0, Val[0], -32768, 32767) - 22;
+	  Val[3] = (int16_t)MapValue(Val[3], 0, Val[0], -32768, 32767) -22;
+	  Val[0] = (int16_t)MapValue(Val[0], 0, Val[0], -1023, 1023);
+
+	  if ((Val[2] <= 3) && (Val[2] >= -3)) Val[2] = 0;
+	  if ((Val[3] <= 3) && (Val[3] >= -3)) Val[3] = 0;
+/*
+
+	  Msg[1] = Val[2];
+	  Msg[2] = Val[2] >> 8;
+	  Msg[3] = Val[3];
+	  Msg[4] = Val[3] >> 8;
+	  if (Val[1] > 0) Msg[5] = 0; else Msg[5] = 128;
+
+	  if (HAL_GPIO_ReadPin(BT_POWER_GPIO_Port, BT_POWER_Pin) == GPIO_PIN_SET) Msg[5] += 1;
+
+	  Msg[10] = 0;
+	  if (HAL_GPIO_ReadPin(BT_RS_GPIO_Port, BT_RS_Pin) == GPIO_PIN_RESET) Msg[10] += 128;*/
+	  ////////////////////////////////////////////////////////////////////////////////////////////////////
+	// btns |rs|, |ls|, |select|, |start|, |dr|, |dl|, |dd|, |du|
+	dataToSend[2] = 0;
+
+	dataToSend[2] |= !HAL_GPIO_ReadPin(BT_LA_GPIO_Port, BT_LA_Pin) << 0;
+	dataToSend[2] |= !HAL_GPIO_ReadPin(BT_LC_GPIO_Port, BT_LC_Pin) << 1;
+	dataToSend[2] |= !HAL_GPIO_ReadPin(BT_LB_GPIO_Port, BT_LB_Pin) << 2;
+	dataToSend[2] |= !HAL_GPIO_ReadPin(BT_LD_GPIO_Port, BT_LD_Pin) << 3;
+	//dataToSend[2] |= (readStart() & 1) << 4;
+	//dataToSend[2] |= (readBack()  & 1) << 5;
+	//dataToSend[2] |= (readLS() & 1) << 6;
+	//dataToSend[2] |= (readRS() & 1) << 7;
+
+	// btns |y|, |x|, |b|, |a|, _, _, |rb|, |lb|
+
+	dataToSend[3] = 0;
+	//dataToSend[3] = Buttons_2;
+
+	//dataToSend[3] |= (readLB() & 1) << 0;
+	//dataToSend[3] |= (readRB() & 1) << 1;
+	//dataToSend[3] |= (0 & 1) << 2;
+	//dataToSend[3] |= (0 & 1) << 3;
+	dataToSend[3] |= !HAL_GPIO_ReadPin(BT_RC_GPIO_Port, BT_RC_Pin) << 4;
+	dataToSend[3] |= !HAL_GPIO_ReadPin(BT_RB_GPIO_Port, BT_RB_Pin) << 5;
+	dataToSend[3] |= !HAL_GPIO_ReadPin(BT_RD_GPIO_Port, BT_RD_Pin) << 6;
+	dataToSend[3] |= !HAL_GPIO_ReadPin(BT_RA_GPIO_Port, BT_RA_Pin) << 7;
+
+	// z = -left-trigger zone _ 0 _ right-trigger zone
+	/*
+	adcFromBuffer[2] = (int16_t)adcFrom[2];
+	adcFromBuffer[2] /= 8;
+	adcFromBuffer[2] = adcFromBuffer[2] - 255;
+	*/
+	// left & right triggers
+	dataToSend[4] = 0; //left
+	dataToSend[5] = 0; //right
+	/*
+	if (adcFromBuffer[2] < 0)
+		dataToSend[4] = (uint8_t)(256 - (adcFromBuffer[2] & 0xFF));
+	else
+		dataToSend[5] = adcFromBuffer[2] & 0xFF;
+		*/
+///////////////////////////////////////////////////////////////////////////// lx
+
+	//adcFromBuffer[1] = Val[2];//(int16_t)adcFrom[0];
+	//adcFromBuffer[1] -= 2048;
+	//adcFromBuffer[1] *= 16;
+	dataToSend[6] = Val[3] & 0xFF;
+	dataToSend[7] = (Val[3] >> 8) & 0xFF;
+	/*
+	adcFromBuffer[1] = (int16_t)V_Value;
+	adcFromBuffer[1] -= 110;
+	//adcFromBuffer[1] -= 1;		// Aby nie przekroczyc zakresu
+	adcFromBuffer[1] *= -256;
+	dataToSend[6] = adcFromBuffer[1] & 0xFF;
+	dataToSend[7] = (adcFromBuffer[1] >> 8) & 0xFF;
+///////////////////////////////////////////////////////////////////////////// ly
+	adcFromBuffer[0] = (int16_t)H_Value;
+	adcFromBuffer[0] -= 110;
+	//adcFromBuffer[1] -= 1;		// Aby nie przekroczyc zakresu
+	adcFromBuffer[0] *= -256;
+	dataToSend[8] = adcFromBuffer[0] & 0xFF;
+	dataToSend[9] = (adcFromBuffer[0] >> 8) & 0xFF;
+	*/
+	//adcFromBuffer[0] = (int16_t)adcFrom[0];
+	//adcFromBuffer[0] -= 2048;
+	//adcFromBuffer[0] *= 16;
+	/*
+	adcFromBuffer[0] = 0;*/
+	dataToSend[8] = Val[2] & 0xFF;
+	dataToSend[9] = (Val[2] >> 8) & 0xFF;
+
+/////////////////////////////////////////////////////////////////////////////
+	// rx
+	dataToSend[10] = 0x7F;
+	dataToSend[11] = 0xFF;
+	// ry
+	dataToSend[12] = 0x7F;
+	dataToSend[13] = 0xFF;
+}
+
+void Serial_Recived(uint8_t* Buf, uint32_t *Len){
+	switch(Buf[0]){
+	case '0': {
+		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, 1);
+		Msg[0] = 'O';
+		Msg[1] = 'N';
+		Serial_Send(Msg, 2);
+		break;
+	}
+	case '1': {
+		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, 0);
+		Msg[0] = 'O';
+		Msg[1] = 'F';
+		Serial_Send(Msg, 2);
+		break;
+	}
+	case '2': {
+		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, 0);
+		Msg[0] = FUNC_ACCEL_GYRO_DATA;
+		Serial_Send(Msg, 1);
+		break;
+	}
+	case '3': {
+		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, 0);
+		int16_t Ax = 1024;
+		int16_t Ay = -1024;
+		int16_t Az = 32767;
+		int16_t Gx = -32767;
+		int16_t Gy = 255;
+		int16_t Gz = -255;
+		Msg[0] = FUNC_ACCEL_GYRO_DATA;
+		Msg[1] = (char)Ax;
+		Msg[2] = (char)(Ax >> 8);
+		Msg[3] = (char)Ay;
+		Msg[4] = (char)(Ay >> 8);
+		Msg[5] = (char)Az;
+		Msg[6] = (char)(Az >> 8);
+		Msg[7] = (char)Gx;
+		Msg[8] = (char)(Gx >> 8);
+		Msg[9] = (char)Gy;
+		Msg[10] = (char)(Gy >> 8);
+		Msg[11] = (char)Gz;
+		Msg[12] = (char)(Gz >> 8);
+
+		Serial_Send(Msg, 13);
+	}
+	case 'a': {
+		Flag[0] = 1;
+		break;
+	}
+	case 'b': {
+		Flag[1] = 1;
+		break;
+	}
+	case 'B': {
+		Flag[1] = 0;
+		break;
+	}
+	case 'c': {
+		Flag[2] = 1;
+		break;
+	}
+	case 'd': {
+		Flag[3] = 1;
+		break;
+	}
+	case 'D': {
+		Flag[3] = 0;
+		break;
+	}
+	case FUNC_JOYSTICK_DATA: {
+		//Flag[4] = 1;
+		//BadFunc = 0;
+		// Funkcja FUNC_JOYSTICK_DATA
+		RF_TxData[0] = FUNC_JOYSTICK_DATA;
+		RF_TxData[1] = Buf[1];
+		RF_TxData[2] = Buf[2];
+		RF_TxData[3] = Buf[3];
+		RF_TxData[4] = Buf[4];
+		break;
+	}
+	default: {
+		if (Buf[0] >= 128){
+			RF_TxData[0] = Buf[0];
+			for (int a = 1; a < *Len; a ++){
+				RF_TxData[a] = Buf[a];
+			}
+		}else {
+			Flag[4] = 1;
+			BadFunc = Buf[0];
+		}
+	}
+	}
+}
 /* USER CODE END 0 */
 
 /**
@@ -418,6 +573,8 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
+  //my_MX_USB_DEVICE_Init();
+  //IsHID = 1;
 
   I2C_ClearBusyFlagErratum(&hi2c1, 1000);
   __HAL_RCC_I2C1_FORCE_RESET();
@@ -478,6 +635,12 @@ int main(void)
 
   while (1)
   {
+	  while (IsHID)
+	   {
+		  updateButtons();
+	  USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, dataToSend, 20);
+	  HAL_Delay(10);
+	   }
 	  if (NRF24_available()){
 		  HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 		  NRF24_read(RF_RxData, 13);

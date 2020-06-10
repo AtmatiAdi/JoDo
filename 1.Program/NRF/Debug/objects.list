@@ -3,6 +3,8 @@
 "Core/Src/fonts.o"
 "Core/Src/i2c-lcd.o"
 "Core/Src/main.o"
+"Core/Src/my_usbd_custom_hid_if.o"
+"Core/Src/my_usbd_customhid.o"
 "Core/Src/ssd1306.o"
 "Core/Src/stm32f1xx_hal_msp.o"
 "Core/Src/stm32f1xx_it.o"

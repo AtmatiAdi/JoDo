@@ -41,7 +41,8 @@ USB_DEVICE/App/usb_device.o: ../USB_DEVICE/App/usb_device.c \
  ../USB_DEVICE/App/usbd_desc.h \
  ../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc/usbd_cdc.h \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h \
- ../USB_DEVICE/App/usbd_cdc_if.h
+ ../USB_DEVICE/App/usbd_cdc_if.h ../Core/Inc/my_usbd_customhid.h \
+ ../Core/Inc/my_usbd_custom_hid_if.h ../Core/Inc/my_usbd_customhid.h
 
 ../USB_DEVICE/App/usb_device.h:
 
@@ -130,3 +131,9 @@ USB_DEVICE/App/usb_device.o: ../USB_DEVICE/App/usb_device.c \
 ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h:
 
 ../USB_DEVICE/App/usbd_cdc_if.h:
+
+../Core/Inc/my_usbd_customhid.h:
+
+../Core/Inc/my_usbd_custom_hid_if.h:
+
+../Core/Inc/my_usbd_customhid.h:
