@@ -286,17 +286,14 @@ static void MX_USART2_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 double MapValue(double Val, double FromLow,double FromHigh,double ToLow,double ToHigh){
-	return ToLow + ((ToHigh - ToLow) / (FromHigh - FromLow)) * (Val - FromLow);
+	double out = ToLow + ((ToHigh - ToLow) / (FromHigh - FromLow)) * (Val - FromLow);
+	if (out > ToHigh) out = ToHigh;
+	if (out < ToLow) out - ToLow;
+	return out;
 }
 
-double MapValue2(double input, double input_start,double input_end,double output_start,double output_end) {
-	double slope = 1.0 * (output_end - output_start) / (input_end - input_start);
-	return output_start + slope * (input - input_start);
-}
-void updateButtons()
-{
-	  int16_t Val[4];
-	  for (int a = 0; a < 4; a++){
+void AdsRead(int16_t *buf){
+	for (int a = 0; a < 4; a++){
 		  ADSwrite[0] = 0x01;
 		  switch(a){
 		  case 0: {
@@ -317,126 +314,96 @@ void updateButtons()
 		  }
 		  }
 
-		  __HAL_RCC_I2C1_FORCE_RESET();
-		  __HAL_RCC_I2C1_RELEASE_RESET();
-		  MX_I2C1_Init();
-		  __HAL_RCC_I2C1_FORCE_RESET();
-		  __HAL_RCC_I2C1_RELEASE_RESET();
-		  MX_I2C1_Init();
-
 		  ADSwrite[2] = 0xE3; // 10000011 // 10100011 // 11000011// 11100011
 		  HAL_I2C_Master_Transmit(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 3, 100);
 		  ADSwrite[0] = 0x00;
 		  HAL_I2C_Master_Transmit(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 1, 100);
-		  //HAL_Delay(1);
 		  NRF24_DelayMicroSeconds(100);
 		  HAL_I2C_Master_Receive(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 2, 100);
-
-		  //Msg[1 + a*2] = ADSwrite[1];
-		  //Msg[1 + a*2 + 1] = ADSwrite[0];
-		  Val[a] = (((int16_t)ADSwrite[0]) << 8 | ADSwrite[1]);
-		  //Serial_Send("ELO", 3);
-
+		  buf[a] = (((int16_t)ADSwrite[0]) << 8 | ADSwrite[1]);
 	  }
+}
 
-	  Val[1] = (int16_t)MapValue(Val[1], 0, Val[0], -1023, 1023);
-	  Val[2] = (int16_t)MapValue(Val[2], 0, Val[0], -32768, 32767) - 22;
-	  Val[3] = (int16_t)MapValue(Val[3], 0, Val[0], -32768, 32767) -22;
-	  Val[0] = (int16_t)MapValue(Val[0], 0, Val[0], -1023, 1023);
-
+void AdcRead(int16_t *buf){
+	HAL_ADC_Start(&hadc1);
+	if (HAL_ADC_PollForConversion(&hadc1, 1000) == HAL_OK) {
+		buf[0] = HAL_ADC_GetValue(&hadc1);
+	}
+	if (HAL_ADC_PollForConversion(&hadc1, 1000) == HAL_OK) {
+		buf[1] = HAL_ADC_GetValue(&hadc1);
+	}
+	if (HAL_ADC_PollForConversion(&hadc1, 1000) == HAL_OK) {
+		buf[2] = HAL_ADC_GetValue(&hadc1);
+	}
+	HAL_ADC_Stop(&hadc1);
+}
+void updateButtons()
+{
+	  int16_t Val[4];
+	  AdsRead(Val);
+	  Val[1] = (int16_t)MapValue(Val[1], 0, Val[0], 0, 10);
+	  Val[2] = (int16_t)MapValue(Val[2], 0, Val[0], -32768, 32767);
+	  Val[3] = (int16_t)MapValue(Val[3], 0, Val[0], -32768, 32767);
 	  if ((Val[2] <= 3) && (Val[2] >= -3)) Val[2] = 0;
 	  if ((Val[3] <= 3) && (Val[3] >= -3)) Val[3] = 0;
+	  if (Val[1] > 5) Val[1] = 0; else Val[1] = 1;
+
+	 int16_t Adc[3];
+	 AdcRead(Adc);
+	 Adc[0] = (int16_t)MapValue(Adc[0], 0, 4095, -32768, 32767);
+	 Adc[1] = (int16_t)MapValue(Adc[1], 0, 4095, -32768, 32767);
 /*
 
-	  Msg[1] = Val[2];
-	  Msg[2] = Val[2] >> 8;
-	  Msg[3] = Val[3];
-	  Msg[4] = Val[3] >> 8;
-	  if (Val[1] > 0) Msg[5] = 0; else Msg[5] = 128;
-
 	  if (HAL_GPIO_ReadPin(BT_POWER_GPIO_Port, BT_POWER_Pin) == GPIO_PIN_SET) Msg[5] += 1;
-
-	  Msg[10] = 0;
-	  if (HAL_GPIO_ReadPin(BT_RS_GPIO_Port, BT_RS_Pin) == GPIO_PIN_RESET) Msg[10] += 128;*/
+*/
 	  ////////////////////////////////////////////////////////////////////////////////////////////////////
 	// btns |rs|, |ls|, |select|, |start|, |dr|, |dl|, |dd|, |du|
 	dataToSend[2] = 0;
-
-	dataToSend[2] |= !HAL_GPIO_ReadPin(BT_LA_GPIO_Port, BT_LA_Pin) << 0;
+	dataToSend[2] |= Val[1] << 0;
 	dataToSend[2] |= !HAL_GPIO_ReadPin(BT_LC_GPIO_Port, BT_LC_Pin) << 1;
 	dataToSend[2] |= !HAL_GPIO_ReadPin(BT_LB_GPIO_Port, BT_LB_Pin) << 2;
 	dataToSend[2] |= !HAL_GPIO_ReadPin(BT_LD_GPIO_Port, BT_LD_Pin) << 3;
 	//dataToSend[2] |= (readStart() & 1) << 4;
 	//dataToSend[2] |= (readBack()  & 1) << 5;
-	//dataToSend[2] |= (readLS() & 1) << 6;
+	//dataToSend[2] |= (Val[1]  & 1) << 6;
 	//dataToSend[2] |= (readRS() & 1) << 7;
-
 	// btns |y|, |x|, |b|, |a|, _, _, |rb|, |lb|
-
 	dataToSend[3] = 0;
-	//dataToSend[3] = Buttons_2;
-
-	//dataToSend[3] |= (readLB() & 1) << 0;
-	//dataToSend[3] |= (readRB() & 1) << 1;
-	//dataToSend[3] |= (0 & 1) << 2;
-	//dataToSend[3] |= (0 & 1) << 3;
+	dataToSend[3] |= !HAL_GPIO_ReadPin(BT_LA_GPIO_Port, BT_LA_Pin)  & 1 << 0;
+	dataToSend[3] |= !HAL_GPIO_ReadPin(BT_RA_GPIO_Port, BT_RA_Pin) << 1;
+	//dataToSend[3] |= (Val[1] & 1) << 2;
+	//dataToSend[3] |= (Val[1] & 1) << 3;
 	dataToSend[3] |= !HAL_GPIO_ReadPin(BT_RC_GPIO_Port, BT_RC_Pin) << 4;
 	dataToSend[3] |= !HAL_GPIO_ReadPin(BT_RB_GPIO_Port, BT_RB_Pin) << 5;
 	dataToSend[3] |= !HAL_GPIO_ReadPin(BT_RD_GPIO_Port, BT_RD_Pin) << 6;
-	dataToSend[3] |= !HAL_GPIO_ReadPin(BT_RA_GPIO_Port, BT_RA_Pin) << 7;
-
-	// z = -left-trigger zone _ 0 _ right-trigger zone
-	/*
-	adcFromBuffer[2] = (int16_t)adcFrom[2];
-	adcFromBuffer[2] /= 8;
-	adcFromBuffer[2] = adcFromBuffer[2] - 255;
-	*/
+	dataToSend[3] |= !HAL_GPIO_ReadPin(BT_RS_GPIO_Port, BT_RS_Pin) << 7;
 	// left & right triggers
 	dataToSend[4] = 0; //left
 	dataToSend[5] = 0; //right
-	/*
-	if (adcFromBuffer[2] < 0)
-		dataToSend[4] = (uint8_t)(256 - (adcFromBuffer[2] & 0xFF));
-	else
-		dataToSend[5] = adcFromBuffer[2] & 0xFF;
-		*/
-///////////////////////////////////////////////////////////////////////////// lx
-
-	//adcFromBuffer[1] = Val[2];//(int16_t)adcFrom[0];
-	//adcFromBuffer[1] -= 2048;
-	//adcFromBuffer[1] *= 16;
+	//lx
 	dataToSend[6] = Val[3] & 0xFF;
 	dataToSend[7] = (Val[3] >> 8) & 0xFF;
-	/*
-	adcFromBuffer[1] = (int16_t)V_Value;
-	adcFromBuffer[1] -= 110;
-	//adcFromBuffer[1] -= 1;		// Aby nie przekroczyc zakresu
-	adcFromBuffer[1] *= -256;
-	dataToSend[6] = adcFromBuffer[1] & 0xFF;
-	dataToSend[7] = (adcFromBuffer[1] >> 8) & 0xFF;
-///////////////////////////////////////////////////////////////////////////// ly
-	adcFromBuffer[0] = (int16_t)H_Value;
-	adcFromBuffer[0] -= 110;
-	//adcFromBuffer[1] -= 1;		// Aby nie przekroczyc zakresu
-	adcFromBuffer[0] *= -256;
-	dataToSend[8] = adcFromBuffer[0] & 0xFF;
-	dataToSend[9] = (adcFromBuffer[0] >> 8) & 0xFF;
-	*/
-	//adcFromBuffer[0] = (int16_t)adcFrom[0];
-	//adcFromBuffer[0] -= 2048;
-	//adcFromBuffer[0] *= 16;
-	/*
-	adcFromBuffer[0] = 0;*/
+	// ly
 	dataToSend[8] = Val[2] & 0xFF;
 	dataToSend[9] = (Val[2] >> 8) & 0xFF;
-
-/////////////////////////////////////////////////////////////////////////////
 	// rx
-	dataToSend[10] = 0x7F;
-	dataToSend[11] = 0xFF;
+	dataToSend[10] = Adc[1] & 0xFF;
+	dataToSend[11] = (Adc[1] >> 8) & 0xFF;
 	// ry
-	dataToSend[12] = 0x7F;
-	dataToSend[13] = 0xFF;
+	dataToSend[12] = Adc[0] & 0xFF;
+	dataToSend[13] = (Adc[0] >> 8) & 0xFF;
+}
+
+void UlToStr(char *s, unsigned long bin, unsigned char n)
+{
+    s += n;
+    *s = '\0';
+
+    while (n--)
+    {
+        *--s = (bin % 10) + '0';
+        bin /= 10;
+    }
 }
 
 void Serial_Recived(uint8_t* Buf, uint32_t *Len){
@@ -571,10 +538,10 @@ int main(void)
   MX_TIM3_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
-  MX_USB_DEVICE_Init();
+  //MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
-  //my_MX_USB_DEVICE_Init();
-  //IsHID = 1;
+  my_MX_USB_DEVICE_Init();
+  IsHID = 1;
 
   I2C_ClearBusyFlagErratum(&hi2c1, 1000);
   __HAL_RCC_I2C1_FORCE_RESET();
@@ -627,7 +594,7 @@ int main(void)
 	//lcd_send_string ("HELLO WORLD !!");
 	//SSD1306_Fill (0);
 	//SSD1306_UpdateScreen(); //display
-
+	//HAL_ADC_Start(&hadc1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -637,9 +604,24 @@ int main(void)
   {
 	  while (IsHID)
 	   {
-		  updateButtons();
-	  USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, dataToSend, 20);
-	  HAL_Delay(10);
+			updateButtons();
+			USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, dataToSend, 20);
+			HAL_Delay(10);
+
+			int16_t Val[4];
+			//AdsRead(Val);
+			//Val[1] = (int16_t)MapValue(Val[1], 0, Val[0], 0, 10);
+			Val[1] = HAL_GPIO_ReadPin(BT_POWER_GPIO_Port, BT_POWER_Pin);
+			char s[5];
+			UlToStr(s, Val[1], 5);
+			SSD1306_Fill (0);
+			SSD1306_UpdateScreen(); //display
+			SSD1306_GotoXY (10,10);
+			SSD1306_Puts (s, &Font_11x18, 1);
+			SSD1306_GotoXY (10, 30);
+			SSD1306_Puts ("WORLD !!", &Font_11x18, 1);
+			SSD1306_UpdateScreen(); //display
+
 	   }
 	  if (NRF24_available()){
 		  HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
@@ -916,12 +898,12 @@ static void MX_ADC1_Init(void)
   /** Common config 
   */
   hadc1.Instance = ADC1;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
+  hadc1.Init.ContinuousConvMode = ENABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.NbrOfConversion = 3;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
     Error_Handler();
@@ -930,13 +912,26 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
   }
   /* USER CODE BEGIN ADC1_Init 2 */
-
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = ADC_REGULAR_RANK_3;
+  sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+	Error_Handler();
+  }
+  sConfig.Channel = ADC_CHANNEL_4;
+  sConfig.Rank = ADC_REGULAR_RANK_2;
+  sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+	Error_Handler();
+  }
   /* USER CODE END ADC1_Init 2 */
 
 }
