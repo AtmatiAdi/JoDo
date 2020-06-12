@@ -140,8 +140,7 @@ void SSD1306_Fill(SSD1306_COLOR_t color) {
 void SSD1306_DrawPixel(uint16_t x, uint16_t y, SSD1306_COLOR_t color) {
 	if (
 		x >= SSD1306_WIDTH ||
-		y >= SSD1306_HEIGHT
-	) {
+		y >= SSD1306_HEIGHT	) {
 		/* Error */
 		return;
 	}
@@ -156,6 +155,32 @@ void SSD1306_DrawPixel(uint16_t x, uint16_t y, SSD1306_COLOR_t color) {
 		SSD1306_Buffer[x + (y / 8) * SSD1306_WIDTH] |= 1 << (y % 8);
 	} else {
 		SSD1306_Buffer[x + (y / 8) * SSD1306_WIDTH] &= ~(1 << (y % 8));
+	}
+}
+
+void SSD1306_DrawIcon16x16(int x, int y, char* Icon) {
+	for (int a = 0; a  < 16; a++){
+		for (int b = 0; b < 8; b++){
+			SSD1306_DrawPixel(8-b+x,a+y, (Icon[a*2] >> b) & 1);
+		}
+		for (int b = 0; b < 8; b++){
+			SSD1306_DrawPixel(8-b+8+x,a+y, (Icon[a*2+1] >> b) & 1);
+		}
+	}
+}
+
+void SSD1306_DrawBitmap(int x, int y, char* BitMap, int width, int height){
+	width = width/8;
+	int row = 0;
+	int col = 0;
+	for (int row_s = 0; row_s  < height*width; row_s += width){
+		for (int c = 0; c < width; c++){
+			for (int b = 0; b < 8; b++){
+				SSD1306_DrawPixel(8-b + col + x,row+y, (BitMap[row_s+c] >> b) & 1);
+			}
+			col= c*8;
+		}
+		row++;
 	}
 }
 

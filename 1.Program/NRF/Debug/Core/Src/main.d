@@ -39,8 +39,9 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h \
  ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ctlreq.h \
  ../Core/Inc/my_usbd_custom_hid_if.h ../Core/Inc/my_usbd_customhid.h \
- ../Core/Inc/ssd1306.h ../Core/Inc/fonts.h ../Core/Inc/i2c-lcd.h \
- ../Core/Inc/MY_NRF24.h ../Core/Inc/nRF24L01.h ../Core/Inc/TJ_MPU6050.h
+ ../Core/Inc/my_icons.h ../Core/Inc/my_bitmaps.h ../Core/Inc/ssd1306.h \
+ ../Core/Inc/fonts.h ../Core/Inc/i2c-lcd.h ../Core/Inc/MY_NRF24.h \
+ ../Core/Inc/nRF24L01.h ../Core/Inc/TJ_MPU6050.h
 
 ../Core/Inc/main.h:
 
@@ -127,6 +128,10 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Core/Inc/my_usbd_custom_hid_if.h:
 
 ../Core/Inc/my_usbd_customhid.h:
+
+../Core/Inc/my_icons.h:
+
+../Core/Inc/my_bitmaps.h:
 
 ../Core/Inc/ssd1306.h:
 

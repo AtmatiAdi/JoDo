@@ -24,7 +24,8 @@
 /* USER CODE BEGIN Includes */
 #include "my_usbd_customhid.h"
 #include "my_usbd_custom_hid_if.h"
-
+#include "my_icons.h"
+#include "my_bitmaps.h"
 #include "ssd1306.h"
 #include "i2c-lcd.h"
 #include "string.h"
@@ -39,6 +40,24 @@
 #define FUNC_ACCEL_GYRO_COMBO	130
 
 #define ADS1115_ADDRESS 0x48
+
+char Program_name[] = {
+	'G','a','m','e','p','a','d',
+	'S','M','i','c','r','o','m','o','u','s','e',
+	'T','e','s','t','1',
+	'T','e','s','t','2',
+	'T','e','s','t','3',
+	'T','e','s','t','4'};
+int Program_length[] = {
+	7,
+	11,
+	5,
+	5,
+	5,
+	5,};
+int Program_Count = 6;
+int Program_Running;
+
 char ADSwrite[6];
 
 char Msg[16];
@@ -53,7 +72,6 @@ uint8_t dataToSend[20] = {0x00, 0x14, 0x01, 0xEE, 0x0F, 0x00, 0x0F, 0x00, 0xFF, 
 //                        butns|size|     |     | lt  | rt  | lx        | ly        | rx        | ry        | unused
 //                                    b10 & b9  & b7  & b8  & dr  & dl  & dd  & du
 //
-
 
 int Serial_Send(uint8_t* Buf, uint32_t *Len){
 	CDC_Transmit_FS(Buf, Len);
@@ -87,7 +105,6 @@ static bool wait_for_gpio_state_timeout(GPIO_TypeDef *port, uint16_t pin, GPIO_P
     }
     return ret;
 }
-
 
 static void I2C_ClearBusyFlagErratum(I2C_HandleTypeDef* handle, uint32_t timeout)
 {
@@ -337,6 +354,7 @@ void AdcRead(int16_t *buf){
 	}
 	HAL_ADC_Stop(&hadc1);
 }
+
 void updateButtons()
 {
 	  int16_t Val[4];
@@ -352,10 +370,7 @@ void updateButtons()
 	 AdcRead(Adc);
 	 Adc[0] = (int16_t)MapValue(Adc[0], 0, 4095, -32768, 32767);
 	 Adc[1] = (int16_t)MapValue(Adc[1], 0, 4095, -32768, 32767);
-/*
 
-	  if (HAL_GPIO_ReadPin(BT_POWER_GPIO_Port, BT_POWER_Pin) == GPIO_PIN_SET) Msg[5] += 1;
-*/
 	  ////////////////////////////////////////////////////////////////////////////////////////////////////
 	// btns |rs|, |ls|, |select|, |start|, |dr|, |dl|, |dd|, |du|
 	dataToSend[2] = 0;
@@ -500,6 +515,402 @@ void Serial_Recived(uint8_t* Buf, uint32_t *Len){
 	}
 	}
 }
+
+// Fast = 0 -> wykona sie rysowanie na ekranie
+// Fast = 1 -> Wykona sie tylko sprawdzenie napiecia beteri
+void Update(int Fast){
+	if (HAL_GPIO_ReadPin(VIN_GPIO_Port, VIN_Pin)){
+		// Zasilanie na USB
+		HAL_GPIO_WritePin(ON_GPIO_Port, ON_Pin, 0);
+		if (HAL_GPIO_ReadPin(BT_POWER_GPIO_Port, BT_POWER_Pin)){
+			// Mosfet i tak przeskoczy, pzrerwa w zasilaniu zresetuje procka
+		}
+		// Ikona zasilania z usb
+		if (Fast < 1){
+			SSD1306_DrawIcon16x16(0,48, plug_icon16x16);
+			SSD1306_UpdateScreen();
+		}
+	} else {
+		// Zasilanie na Baterii
+		if (HAL_GPIO_ReadPin(BT_POWER_GPIO_Port, BT_POWER_Pin)){
+			// Wyłączyć
+			SSD1306_Fill(0);
+			SSD1306_GotoXY(20, 20);
+			SSD1306_Puts("Byo :D", &Font_16x26, 1);
+			SSD1306_UpdateScreen();
+			HAL_Delay(1000);
+			HAL_GPIO_WritePin(ON_GPIO_Port, ON_Pin, 0);
+			HAL_Delay(1000);
+		} else {
+			// Ikona naładowania
+			HAL_GPIO_WritePin(ON_GPIO_Port, ON_Pin, 1);
+			int16_t Val[3];
+			AdcRead(Val);
+			int bat = MapValue(Val[2], 0,4095 , 0, 1000);
+			if (Fast < 1){
+				if (bat > 390) {
+					SSD1306_DrawIcon16x16(0,48, bat3_icon16x16);
+				} else if (bat > 360) {
+					SSD1306_DrawIcon16x16(0,48, bat2_icon16x16);
+				} else if (bat > 330) {
+					SSD1306_DrawIcon16x16(0,48, bat1_icon16x16);
+				} else if (bat > 300) {
+					SSD1306_DrawIcon16x16(0,48, bat0_icon16x16);
+				}
+			}
+			if (bat <= 300){
+				// Bateria rozładowana, wyłączenie
+				SSD1306_Fill(0);
+				SSD1306_GotoXY(20, 20);
+				SSD1306_Puts("Battery", &Font_16x26, 1);
+				SSD1306_GotoXY(20, 40);
+				SSD1306_Puts("is flat", &Font_16x26, 1);
+				SSD1306_UpdateScreen();
+				HAL_Delay(1000);
+				//SSD1306_DrawIcon16x16(0,48, cancel_icon16x16);
+				//HAL_GPIO_WritePin(ON_GPIO_Port, ON_Pin, 0);
+				//HAL_Delay(3000);
+			}
+			//SSD1306_UpdateScreen();
+		}
+	}
+	if (Fast < 1){
+		SSD1306_UpdateScreen();
+		SSD1306_Fill(0);
+	}
+}
+
+void Begin(){
+	SSD1306_Fill(0);
+	SSD1306_DrawBitmap(0, 0, logo_128x64, 128, 64);
+	SSD1306_UpdateScreen();
+	HAL_Delay(1000);
+}
+
+int SelectProgram(){
+	int s_row = 0;
+	int sel = 0;
+	int B = 0;
+	int D = 0;
+	while(1){
+		SSD1306_Fill(0);
+		SSD1306_GotoXY(0, 0);
+		SSD1306_Puts("Program Sel", &Font_11x18, 1);
+		int start = 0;
+		for (int a = 0; a < s_row; a++){
+			start+=Program_length[a];
+		}
+		for (int num = 0; num < 3; num++){
+			if (num + s_row > Program_Count-1) break;
+			SSD1306_GotoXY(20, 20 + num*16);
+			for (int c = 0; c < Program_length[s_row+num]; c++){
+				SSD1306_Putc(Program_name[c + start], &Font_7x10, 1);
+			}
+			start+=Program_length[num+s_row];
+		}
+		SSD1306_DrawIcon16x16(0, 20-4 + (sel-s_row)*16, arrow_right_icon16x16);
+		SSD1306_UpdateScreen();
+		HAL_Delay(100);
+		while(1){
+			if (!HAL_GPIO_ReadPin(BT_RD_GPIO_Port, BT_RD_Pin)){
+				if (B == 0){
+					sel--;
+					B = 1;
+					break;
+				}
+			} else B = 0;
+			if (!HAL_GPIO_ReadPin(BT_RB_GPIO_Port, BT_RB_Pin)){
+				if (D == 0){
+					sel++;
+					D = 1;
+					break;
+				}
+			} else D = 0;
+			if (!HAL_GPIO_ReadPin(BT_RC_GPIO_Port, BT_RC_Pin)) return sel;
+		}
+		if (sel - 2> s_row) {	// Scroll w dół
+			s_row++;
+		}
+		if (sel < s_row) {		// scroll w górę
+			s_row--;
+		}
+		if (s_row + 3 > Program_Count) {	// Przepełnienie w dół
+			s_row = sel = 0;
+		}
+		if (s_row < 0) {		// Pzrepelnienie w górę
+			s_row = Program_Count-3;
+			sel = Program_Count-1;
+		}
+	}
+}
+
+void InitDevice_NRF(){
+	NRF24_begin(CSN_GPIO_Port, CSN_Pin, CE_Pin, hspi1);
+	NRF24_setAutoAck(true);
+	NRF24_setChannel(52);
+	NRF24_setPayloadSize(13);
+	NRF24_openReadingPipe(1, PipeAddres);
+	NRF24_enableDynamicPayloads();
+	NRF24_enableAckPayload();
+	NRF24_startListening();
+}
+
+void InitDevice_MPU(){
+	MPU_ConfigTypeDef MpuConfig;
+	MPU6050_Init(&hi2c1);
+	MpuConfig.Accel_Full_Scale = AFS_SEL_4g;
+	MpuConfig.ClockSource = Internal_8MHz;
+	MpuConfig.CONFIG_DLPF = DLPF_184A_188G_Hz;
+	MpuConfig.Gyro_Full_Scale = FS_SEL_500;
+	MpuConfig.Sleep_Mode_Bit = 0;
+	MPU6050_Config(&MpuConfig);
+}
+
+void Init_Test(){
+	SSD1306_Fill(0);
+	SSD1306_GotoXY(0, 0);
+	SSD1306_Puts("Program", &Font_11x18, 1);
+	SSD1306_GotoXY(0, 20);
+	SSD1306_Puts("testowy", &Font_11x18, 1);
+	SSD1306_UpdateScreen();
+}
+
+void Loop_Test(){
+
+}
+
+void Init_Gamepad(){
+	my_MX_USB_DEVICE_Init();
+	InitDevice_MPU();
+	SSD1306_Fill(0);
+	SSD1306_GotoXY(0, 0);
+	SSD1306_Puts("GAMEPAD", &Font_11x18, 1);
+	updateButtons();
+	SSD1306_UpdateScreen();
+}
+
+void Loop_Gamepad(){
+	updateButtons();
+	USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, dataToSend, 20);
+	HAL_Delay(10);
+}
+
+void Init_SMicromouse(){
+	MX_USB_DEVICE_Init();
+	InitDevice_MPU();
+	InitDevice_NRF();
+	SSD1306_Fill(0);
+	SSD1306_GotoXY(0, 0);
+	SSD1306_Puts("Micromouse", &Font_11x18, 1);
+	SSD1306_UpdateScreen();
+}
+
+void Loop_SMicromouse(){
+	if (NRF24_available()){
+		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+		NRF24_read(RF_RxData, 13);
+		Serial_Send(RF_RxData, 13);
+		NRF24_writeAckPayload(1, RF_TxData, 16);
+		// BARDZO ISTOTNE, I2C i NRF ZAKLUCAJA SIE JAKOS, DLA TEGO DANE ZBIERAMY PO TRANSMISJI NRF
+		// ZAKLUCENIA NADAL WYSTEPUJA ALE ZADZIEJ, JE WYELIMINOWAC TRZEBA INACZEJ ??
+		// Ustawienie funkcji
+		RF_TxData[0] = 0;
+		int16_t Val[4];
+		if (Flag[3] == 1) {
+		  // Ustawienie funkcji
+		  RF_TxData[0] = FUNC_JOYSTICK_DATA;
+		  // Odczyt z ADS1115
+		  for (int a = 0; a < 4; a++){
+			  ADSwrite[0] = 0x01;
+			  switch(a){
+			  case 0: {
+				  ADSwrite[1] = 0xC1; // 11000011
+				  break;
+			  }
+			  case 1: {
+				  ADSwrite[1] = 0xD1; // 11010011
+				  break;
+			  }
+			  case 2: {
+				  ADSwrite[1] = 0xE1; // 11100011
+				  break;
+			  }
+			  case 3: {
+				  ADSwrite[1] = 0xF1; // 11110011
+				  break;
+			  }
+			  }
+			  /*
+			  __HAL_RCC_I2C2_FORCE_RESET();
+			  __HAL_RCC_I2C2_RELEASE_RESET();
+			  MX_I2C2_Init();
+			  __HAL_RCC_I2C2_FORCE_RESET();
+			  __HAL_RCC_I2C2_RELEASE_RESET();
+			  MX_I2C2_Init();*/
+
+
+			  ADSwrite[2] = 0xE3; // 10000011 // 10100011 // 11000011// 11100011
+			  HAL_I2C_Master_Transmit(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 3, 100);
+			  ADSwrite[0] = 0x00;
+			  HAL_I2C_Master_Transmit(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 1, 100);
+			  //HAL_Delay(1);
+			  NRF24_DelayMicroSeconds(100);
+			  HAL_I2C_Master_Receive(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 2, 100);
+
+			  //RF_TxData[1 + a*2] = ADSwrite[1];
+			  //RF_TxData[1 + a*2 + 1] = ADSwrite[0];
+			  Val[a] = (((int16_t)ADSwrite[0]) << 8 | ADSwrite[1]);
+			}
+		  //Val[1] = (int16_t)MapValue(Val[1], 0, Val[0], -1023, 1023);
+		  Val[2] = (int16_t)MapValue(Val[2], 0, Val[0], -1023, 1023) - 22;
+		  Val[3] = (int16_t)MapValue(Val[3], 0, Val[0], -1023, 1023) - 22;
+		  //Val[0] = (int16_t)MapValue(Val[0], 0, Val[0], -1023, 1023);
+
+		  if ((Val[2] <= 6) && (Val[2] >= -6)) Val[2] = 0;
+		  if ((Val[3] <= 6) && (Val[3] >= -6)) Val[3] = 0;
+
+		  RF_TxData[1] = Val[2];
+		  RF_TxData[2] = Val[2] >> 8;
+		  RF_TxData[3] = Val[3];
+		  RF_TxData[4] = Val[3] >> 8;
+
+		  // Nastepne odczyty...
+
+		}
+		}
+		if (Flag[4] == 1){
+		Flag[4] = 0;
+		char Bad[6] = {'B', 'A', 'D', '(', BadFunc, ')'};
+		Serial_Send(Bad, 6);
+		HAL_Delay(1000);
+		Bad[0] = BadFunc;
+		Serial_Send(Bad, 6);
+		}
+		if ((Flag[0] == 1) || (Flag[1] == 1)) {
+		Flag[0] = 0;
+
+		I2C_ClearBusyFlagErratum(&hi2c1, 1000);
+
+		__HAL_RCC_I2C1_FORCE_RESET();
+		__HAL_RCC_I2C1_RELEASE_RESET();
+		MX_I2C1_Init();
+		__HAL_RCC_I2C1_FORCE_RESET();
+		__HAL_RCC_I2C1_RELEASE_RESET();
+		MX_I2C1_Init();
+
+		//HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, 0);
+
+		MPU6050_Get_Accel_RawData(&AccelData);	// Najpier trzeba akcelerometr
+		MPU6050_Get_Gyro_RawData(&GyroData);		// Potem zyroskop
+
+		Msg[0] = FUNC_ACCEL_GYRO_DATA;
+		Msg[1] = AccelData.x;
+		Msg[2] = AccelData.x >> 8;
+		Msg[3] = AccelData.y;
+		Msg[4] = AccelData.y >> 8;
+		Msg[5] = AccelData.z;
+		Msg[6] = AccelData.z >> 8;
+
+		Msg[7] = GyroData.x;
+		Msg[8] = GyroData.x >> 8;
+		Msg[9] = GyroData.y;
+		Msg[10] = GyroData.y >> 8;
+		Msg[11] = GyroData.z;
+		Msg[12] = GyroData.z >> 8;
+
+		Serial_Send(Msg, 13);
+		HAL_Delay(10);
+		}
+		if (Flag[2] == 1){
+		Flag[2] = 0;
+		// Odczyt z ADS1115
+		int16_t Val[4];
+		for (int a = 0; a < 4; a++){
+		  ADSwrite[0] = 0x01;
+		  switch(a){
+		  case 0: {
+			  ADSwrite[1] = 0xC1; // 11000011
+			  break;
+		  }
+		  case 1: {
+			  ADSwrite[1] = 0xD1; // 11010011
+			  break;
+		  }
+		  case 2: {
+			  ADSwrite[1] = 0xE1; // 11100011
+			  break;
+		  }
+		  case 3: {
+			  ADSwrite[1] = 0xF1; // 11110011
+			  break;
+		  }
+		  }
+
+		  /*
+		  __HAL_RCC_I2C2_FORCE_RESET();
+		  __HAL_RCC_I2C2_RELEASE_RESET();
+		  MX_I2C2_Init();
+		  __HAL_RCC_I2C2_FORCE_RESET();
+		  __HAL_RCC_I2C2_RELEASE_RESET();
+		  MX_I2C2_Init();*/
+
+		  ADSwrite[2] = 0xE3; // 10000011 // 10100011 // 11000011// 11100011
+		  HAL_I2C_Master_Transmit(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 3, 100);
+		  ADSwrite[0] = 0x00;
+		  HAL_I2C_Master_Transmit(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 1, 100);
+		  //HAL_Delay(1);
+		  NRF24_DelayMicroSeconds(100);
+		  HAL_I2C_Master_Receive(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 2, 100);
+
+		  //Msg[1 + a*2] = ADSwrite[1];
+		  //Msg[1 + a*2 + 1] = ADSwrite[0];
+		  Val[a] = (((int16_t)ADSwrite[0]) << 8 | ADSwrite[1]);
+		  //Serial_Send("ELO", 3);
+
+		}
+
+		Val[1] = (int16_t)MapValue(Val[1], 0, Val[0], -1023, 1023);
+		Val[2] = (int16_t)MapValue(Val[2], 0, Val[0], -1023, 1023) - 22;
+		Val[3] = (int16_t)MapValue(Val[3], 0, Val[0], -1023, 1023) -22;
+		Val[0] = (int16_t)MapValue(Val[0], 0, Val[0], -1023, 1023);
+
+		if ((Val[2] <= 3) && (Val[2] >= -3)) Val[2] = 0;
+		if ((Val[3] <= 3) && (Val[3] >= -3)) Val[3] = 0;
+
+		Msg[0] = FUNC_JOYSTICK_DATA;
+		Msg[1] = Val[2];
+		Msg[2] = Val[2] >> 8;
+		Msg[3] = Val[3];
+		Msg[4] = Val[3] >> 8;
+		if (Val[1] > 0) Msg[5] = 0; else Msg[5] = 128;
+		if (HAL_GPIO_ReadPin(BT_LA_GPIO_Port, BT_LA_Pin) == GPIO_PIN_RESET) Msg[5] += 64;
+		if (HAL_GPIO_ReadPin(BT_LB_GPIO_Port, BT_LB_Pin) == GPIO_PIN_RESET) Msg[5] += 32;
+		if (HAL_GPIO_ReadPin(BT_LC_GPIO_Port, BT_LC_Pin) == GPIO_PIN_RESET) Msg[5] += 16;
+		if (HAL_GPIO_ReadPin(BT_LD_GPIO_Port, BT_LD_Pin) == GPIO_PIN_RESET) Msg[5] += 8;
+
+		if (HAL_GPIO_ReadPin(BT_POWER_GPIO_Port, BT_POWER_Pin) == GPIO_PIN_SET) Msg[5] += 1;
+
+		Msg[6] = 0;
+		Msg[7] = 0;
+		Msg[8] = 0;
+		Msg[9] = 0;
+
+		Msg[10] = 0;
+		if (HAL_GPIO_ReadPin(BT_RS_GPIO_Port, BT_RS_Pin) == GPIO_PIN_RESET) Msg[10] += 128;
+		if (HAL_GPIO_ReadPin(BT_RA_GPIO_Port, BT_RA_Pin) == GPIO_PIN_RESET) Msg[10] += 64;
+		if (HAL_GPIO_ReadPin(BT_RB_GPIO_Port, BT_RB_Pin) == GPIO_PIN_RESET) Msg[10] += 32;
+		if (HAL_GPIO_ReadPin(BT_RC_GPIO_Port, BT_RC_Pin) == GPIO_PIN_RESET) Msg[10] += 16;
+		if (HAL_GPIO_ReadPin(BT_RD_GPIO_Port, BT_RD_Pin) == GPIO_PIN_RESET) Msg[10] += 8;
+
+		// Nastepne odczyty
+
+		//RF_TXData[5] = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13)
+
+		Serial_Send(Msg, 11);
+
+		}
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -509,7 +920,6 @@ void Serial_Recived(uint8_t* Buf, uint32_t *Len){
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	MPU_ConfigTypeDef MpuConfig;
 
   /* USER CODE END 1 */
 
@@ -540,9 +950,13 @@ int main(void)
   MX_USART2_UART_Init();
   //MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
-  my_MX_USB_DEVICE_Init();
-  IsHID = 1;
 
+// Zasilanie
+  if (!HAL_GPIO_ReadPin(VIN_GPIO_Port, VIN_Pin)){
+	  // Zasilanie baterynje
+    HAL_GPIO_WritePin(ON_GPIO_Port, ON_Pin, 1);
+  }
+// Reanimacja I2C
   I2C_ClearBusyFlagErratum(&hi2c1, 1000);
   __HAL_RCC_I2C1_FORCE_RESET();
   __HAL_RCC_I2C1_RELEASE_RESET();
@@ -550,7 +964,6 @@ int main(void)
   __HAL_RCC_I2C1_FORCE_RESET();
   __HAL_RCC_I2C1_RELEASE_RESET();
   MX_I2C1_Init();
-
   //I2C_ClearBusyFlagErratum2(&hi2c2, 1000);
   __HAL_RCC_I2C2_FORCE_RESET();
   __HAL_RCC_I2C2_RELEASE_RESET();
@@ -558,274 +971,53 @@ int main(void)
   __HAL_RCC_I2C2_FORCE_RESET();
   __HAL_RCC_I2C2_RELEASE_RESET();
   MX_I2C2_Init();
-
-  NRF24_begin(CSN_GPIO_Port, CSN_Pin, CE_Pin, hspi1);
-
-  NRF24_setAutoAck(true);
-  NRF24_setChannel(52);
-  NRF24_setPayloadSize(13);
-  NRF24_openReadingPipe(1, PipeAddres);
-  NRF24_enableDynamicPayloads();
-  NRF24_enableAckPayload();
-  NRF24_startListening();
-
-  //HAL_I2C_Init(&hi2c1);
-
-  MPU6050_Init(&hi2c1);
-
-  MpuConfig.Accel_Full_Scale = AFS_SEL_4g;
-  MpuConfig.ClockSource = Internal_8MHz;
-  MpuConfig.CONFIG_DLPF = DLPF_184A_188G_Hz;
-  MpuConfig.Gyro_Full_Scale = FS_SEL_500;
-  MpuConfig.Sleep_Mode_Bit = 0;
-  MPU6050_Config(&MpuConfig);
-
-
-	lcd_init ();
-	uint8_t check = SSD1306_Init ();
-	SSD1306_Fill (0);
-	SSD1306_UpdateScreen(); //display
-	SSD1306_GotoXY (10,10);
-	SSD1306_Puts ("HELLO", &Font_11x18, 1);
-	SSD1306_GotoXY (10, 30);
-	SSD1306_Puts ("WORLD !!", &Font_11x18, 1);
-	SSD1306_UpdateScreen(); //display
-	//while((HAL_I2C_IsDeviceReady (&hi2c1, 0x4E, 10, 100)));
-	//lcd_send_string ("HELLO WORLD !!");
-	//SSD1306_Fill (0);
-	//SSD1306_UpdateScreen(); //display
-	//HAL_ADC_Start(&hadc1);
+// Ekran
+  SSD1306_Init ();
+//
+  	Begin();
+	Program_Running = SelectProgram();
+	switch (Program_Running){
+		case 0: {
+			Init_Gamepad();
+			break;
+		}
+		case 1: {
+			Init_SMicromouse();
+			break;
+		}
+		default:  {
+			Init_Test();
+			break;
+		}
+	}
+	Update(0);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
   while (1)
   {
-	  while (IsHID)
-	   {
-			updateButtons();
-			USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, dataToSend, 20);
-			HAL_Delay(10);
 
-			int16_t Val[4];
-			//AdsRead(Val);
-			//Val[1] = (int16_t)MapValue(Val[1], 0, Val[0], 0, 10);
-			Val[1] = HAL_GPIO_ReadPin(BT_POWER_GPIO_Port, BT_POWER_Pin);
-			char s[5];
-			UlToStr(s, Val[1], 5);
-			SSD1306_Fill (0);
-			SSD1306_UpdateScreen(); //display
-			SSD1306_GotoXY (10,10);
-			SSD1306_Puts (s, &Font_11x18, 1);
-			SSD1306_GotoXY (10, 30);
-			SSD1306_Puts ("WORLD !!", &Font_11x18, 1);
-			SSD1306_UpdateScreen(); //display
-
-	   }
-	  if (NRF24_available()){
-		  HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
-		  NRF24_read(RF_RxData, 13);
-		  Serial_Send(RF_RxData, 13);
-		  NRF24_writeAckPayload(1, RF_TxData, 16);
-// BARDZO ISTOTNE, I2C i NRF ZAKLUCAJA SIE JAKOS, DLA TEGO DANE ZBIERAMY PO TRANSMISJI NRF
-// ZAKLUCENIA NADAL WYSTEPUJA ALE ZADZIEJ, JE WYELIMINOWAC TRZEBA INACZEJ ??
-		  // Ustawienie funkcji
-		  RF_TxData[0] = 0;
-		  int16_t Val[4];
-		  if (Flag[3] == 1) {
-			  // Ustawienie funkcji
-			  RF_TxData[0] = FUNC_JOYSTICK_DATA;
-			  // Odczyt z ADS1115
-			  for (int a = 0; a < 4; a++){
-				  ADSwrite[0] = 0x01;
-				  switch(a){
-				  case 0: {
-					  ADSwrite[1] = 0xC1; // 11000011
-					  break;
-				  }
-				  case 1: {
-					  ADSwrite[1] = 0xD1; // 11010011
-					  break;
-				  }
-				  case 2: {
-					  ADSwrite[1] = 0xE1; // 11100011
-					  break;
-				  }
-				  case 3: {
-					  ADSwrite[1] = 0xF1; // 11110011
-					  break;
-				  }
-				  }
-				  /*
-				  __HAL_RCC_I2C2_FORCE_RESET();
-				  __HAL_RCC_I2C2_RELEASE_RESET();
-				  MX_I2C2_Init();
-				  __HAL_RCC_I2C2_FORCE_RESET();
-				  __HAL_RCC_I2C2_RELEASE_RESET();
-				  MX_I2C2_Init();*/
+	switch (Program_Running){
+		case 0: {
+			Loop_Gamepad();
+			Update(1);
+			break;
+		}
+		case 1: {
+			Loop_SMicromouse();
+			Update(1);
+			break;
+		}
+		default:  {
+			Loop_Test();
+			Update(0);
+			break;
+		}
+	}
 
 
-				  ADSwrite[2] = 0xE3; // 10000011 // 10100011 // 11000011// 11100011
-				  HAL_I2C_Master_Transmit(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 3, 100);
-				  ADSwrite[0] = 0x00;
-				  HAL_I2C_Master_Transmit(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 1, 100);
-				  //HAL_Delay(1);
-				  NRF24_DelayMicroSeconds(100);
-				  HAL_I2C_Master_Receive(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 2, 100);
 
-				  //RF_TxData[1 + a*2] = ADSwrite[1];
-				  //RF_TxData[1 + a*2 + 1] = ADSwrite[0];
-				  Val[a] = (((int16_t)ADSwrite[0]) << 8 | ADSwrite[1]);
-				}
-			  //Val[1] = (int16_t)MapValue(Val[1], 0, Val[0], -1023, 1023);
-			  Val[2] = (int16_t)MapValue(Val[2], 0, Val[0], -1023, 1023) - 22;
-			  Val[3] = (int16_t)MapValue(Val[3], 0, Val[0], -1023, 1023) - 22;
-			  //Val[0] = (int16_t)MapValue(Val[0], 0, Val[0], -1023, 1023);
-
-			  if ((Val[2] <= 6) && (Val[2] >= -6)) Val[2] = 0;
-			  if ((Val[3] <= 6) && (Val[3] >= -6)) Val[3] = 0;
-
-			  RF_TxData[1] = Val[2];
-			  RF_TxData[2] = Val[2] >> 8;
-			  RF_TxData[3] = Val[3];
-			  RF_TxData[4] = Val[3] >> 8;
-
-			  // Nastepne odczyty...
-
-		  }
-	  }
-	  if (Flag[4] == 1){
-		  Flag[4] = 0;
-		  char Bad[6] = {'B', 'A', 'D', '(', BadFunc, ')'};
-		  Serial_Send(Bad, 6);
-		  HAL_Delay(1000);
-		  Bad[0] = BadFunc;
-		  Serial_Send(Bad, 6);
-	  }
-	  if ((Flag[0] == 1) || (Flag[1] == 1)) {
-		  Flag[0] = 0;
-
-		  I2C_ClearBusyFlagErratum(&hi2c1, 1000);
-
-		  __HAL_RCC_I2C1_FORCE_RESET();
-		  __HAL_RCC_I2C1_RELEASE_RESET();
-		  MX_I2C1_Init();
-		  __HAL_RCC_I2C1_FORCE_RESET();
-		  __HAL_RCC_I2C1_RELEASE_RESET();
-		  MX_I2C1_Init();
-
-			//HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, 0);
-
-			MPU6050_Get_Accel_RawData(&AccelData);	// Najpier trzeba akcelerometr
-			MPU6050_Get_Gyro_RawData(&GyroData);		// Potem zyroskop
-
-			Msg[0] = FUNC_ACCEL_GYRO_DATA;
-			Msg[1] = AccelData.x;
-			Msg[2] = AccelData.x >> 8;
-			Msg[3] = AccelData.y;
-			Msg[4] = AccelData.y >> 8;
-			Msg[5] = AccelData.z;
-			Msg[6] = AccelData.z >> 8;
-
-			Msg[7] = GyroData.x;
-			Msg[8] = GyroData.x >> 8;
-			Msg[9] = GyroData.y;
-			Msg[10] = GyroData.y >> 8;
-			Msg[11] = GyroData.z;
-			Msg[12] = GyroData.z >> 8;
-
-			Serial_Send(Msg, 13);
-			HAL_Delay(10);
-	  }
-	  if (Flag[2] == 1){
-		  Flag[2] = 0;
-		  // Odczyt z ADS1115
-		  int16_t Val[4];
-		  for (int a = 0; a < 4; a++){
-			  ADSwrite[0] = 0x01;
-			  switch(a){
-			  case 0: {
-				  ADSwrite[1] = 0xC1; // 11000011
-				  break;
-			  }
-			  case 1: {
-				  ADSwrite[1] = 0xD1; // 11010011
-				  break;
-			  }
-			  case 2: {
-				  ADSwrite[1] = 0xE1; // 11100011
-				  break;
-			  }
-			  case 3: {
-				  ADSwrite[1] = 0xF1; // 11110011
-				  break;
-			  }
-			  }
-
-			  /*
-			  __HAL_RCC_I2C2_FORCE_RESET();
-			  __HAL_RCC_I2C2_RELEASE_RESET();
-			  MX_I2C2_Init();
-			  __HAL_RCC_I2C2_FORCE_RESET();
-			  __HAL_RCC_I2C2_RELEASE_RESET();
-			  MX_I2C2_Init();*/
-
-			  ADSwrite[2] = 0xE3; // 10000011 // 10100011 // 11000011// 11100011
-			  HAL_I2C_Master_Transmit(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 3, 100);
-			  ADSwrite[0] = 0x00;
-			  HAL_I2C_Master_Transmit(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 1, 100);
-			  //HAL_Delay(1);
-			  NRF24_DelayMicroSeconds(100);
-			  HAL_I2C_Master_Receive(&hi2c2, ADS1115_ADDRESS<<1, ADSwrite, 2, 100);
-
-			  //Msg[1 + a*2] = ADSwrite[1];
-			  //Msg[1 + a*2 + 1] = ADSwrite[0];
-			  Val[a] = (((int16_t)ADSwrite[0]) << 8 | ADSwrite[1]);
-			  //Serial_Send("ELO", 3);
-
-		  }
-
-		  Val[1] = (int16_t)MapValue(Val[1], 0, Val[0], -1023, 1023);
-		  Val[2] = (int16_t)MapValue(Val[2], 0, Val[0], -1023, 1023) - 22;
-		  Val[3] = (int16_t)MapValue(Val[3], 0, Val[0], -1023, 1023) -22;
-		  Val[0] = (int16_t)MapValue(Val[0], 0, Val[0], -1023, 1023);
-
-		  if ((Val[2] <= 3) && (Val[2] >= -3)) Val[2] = 0;
-		  if ((Val[3] <= 3) && (Val[3] >= -3)) Val[3] = 0;
-
-		  Msg[0] = FUNC_JOYSTICK_DATA;
-		  Msg[1] = Val[2];
-		  Msg[2] = Val[2] >> 8;
-		  Msg[3] = Val[3];
-		  Msg[4] = Val[3] >> 8;
-		  if (Val[1] > 0) Msg[5] = 0; else Msg[5] = 128;
-		  if (HAL_GPIO_ReadPin(BT_LA_GPIO_Port, BT_LA_Pin) == GPIO_PIN_RESET) Msg[5] += 64;
-		  if (HAL_GPIO_ReadPin(BT_LB_GPIO_Port, BT_LB_Pin) == GPIO_PIN_RESET) Msg[5] += 32;
-		  if (HAL_GPIO_ReadPin(BT_LC_GPIO_Port, BT_LC_Pin) == GPIO_PIN_RESET) Msg[5] += 16;
-		  if (HAL_GPIO_ReadPin(BT_LD_GPIO_Port, BT_LD_Pin) == GPIO_PIN_RESET) Msg[5] += 8;
-
-		  if (HAL_GPIO_ReadPin(BT_POWER_GPIO_Port, BT_POWER_Pin) == GPIO_PIN_SET) Msg[5] += 1;
-
-		  Msg[6] = 0;
-		  Msg[7] = 0;
-		  Msg[8] = 0;
-		  Msg[9] = 0;
-
-		  Msg[10] = 0;
-		  if (HAL_GPIO_ReadPin(BT_RS_GPIO_Port, BT_RS_Pin) == GPIO_PIN_RESET) Msg[10] += 128;
-		  if (HAL_GPIO_ReadPin(BT_RA_GPIO_Port, BT_RA_Pin) == GPIO_PIN_RESET) Msg[10] += 64;
-		  if (HAL_GPIO_ReadPin(BT_RB_GPIO_Port, BT_RB_Pin) == GPIO_PIN_RESET) Msg[10] += 32;
-		  if (HAL_GPIO_ReadPin(BT_RC_GPIO_Port, BT_RC_Pin) == GPIO_PIN_RESET) Msg[10] += 16;
-		  if (HAL_GPIO_ReadPin(BT_RD_GPIO_Port, BT_RD_Pin) == GPIO_PIN_RESET) Msg[10] += 8;
-
-		  // Nastepne odczyty
-
-		  //RF_TXData[5] = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13)
-
-		  Serial_Send(Msg, 11);
-
-	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
