@@ -925,19 +925,147 @@ int main(void)
 
   /* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+void Update(){
+	if (HAL_GPIO_ReadPin(VIN_GPIO_Port, VIN_Pin)){
+		// Zasilanie na USB
+		HAL_GPIO_WritePin(ON_GPIO_Port, ON_Pin, 0);
+		if (HAL_GPIO_ReadPin(BT_POWER_GPIO_Port, BT_POWER_Pin)){
+			// Mosfet i tak przeskoczy, pzrerwa w zasilaniu zresetuje procka
+		}
+		// Ikona zasilania z usb
+		SSD1306_DrawIcon16x16(0,48, plug_icon16x16);
+		SSD1306_UpdateScreen();
+	} else {
+		// Zasilanie na Baterii
+		if (HAL_GPIO_ReadPin(BT_POWER_GPIO_Port, BT_POWER_Pin)){
+			// Wyłączyć
+			SSD1306_Fill(0);
+			SSD1306_GotoXY(20, 20);
+			SSD1306_Puts("Byo :D", &Font_16x26, 1);
+			SSD1306_UpdateScreen();
+			HAL_Delay(1000);
+			HAL_GPIO_WritePin(ON_GPIO_Port, ON_Pin, 0);
+			HAL_Delay(1000);
+		} else {
+			// Ikona naładowania
+			HAL_GPIO_WritePin(ON_GPIO_Port, ON_Pin, 1);
+			int16_t Val[3];
+			AdcRead(Val);
+			int bat = MapValue(Val[2], 0,4095 , 0, 1000);
+			if (bat > 390) {
+				SSD1306_DrawIcon16x16(0,48, bat3_icon16x16);
+			} else if (bat > 360) {
+				SSD1306_DrawIcon16x16(0,48, bat2_icon16x16);
+			} else if (bat > 330) {
+				SSD1306_DrawIcon16x16(0,48, bat1_icon16x16);
+			} else if (bat > 300) {
+				SSD1306_DrawIcon16x16(0,48, bat0_icon16x16);
+			} else {
+				// Bateria rozładowana, wyłączenie
+				SSD1306_Fill(0);
+				SSD1306_GotoXY(20, 20);
 
-  /* USER CODE BEGIN Init */
+				SSD1306_Puts("Battery", &Font_16x26, 1);
+				SSD1306_GotoXY(20, 40);
+				SSD1306_Puts("is flat", &Font_16x26, 1);
+				SSD1306_UpdateScreen();
+				HAL_Delay(1000);
+				//SSD1306_DrawIcon16x16(0,48, cancel_icon16x16);
+				//HAL_GPIO_WritePin(ON_GPIO_Port, ON_Pin, 0);
+				//HAL_Delay(3000);
+			}
+			//SSD1306_UpdateScreen();
+		}
+	}
+}
 
-  /* USER CODE END Init */
+void Begin(){
+	SSD1306_Fill(0);
+	SSD1306_DrawBitmap(0, 0, logo_128x64, 128, 64);
+	SSD1306_UpdateScreen();
+	HAL_Delay(1000);
+}
 
-  /* Configure the system clock */
-  SystemClock_Config();
+int SelectProgram(){
+	int s_row = 0;
+	int sel = 0;
+	int B = 0;
+	int D = 0;
+	while(1){
+		SSD1306_Fill(0);
+		SSD1306_GotoXY(0, 0);
+		SSD1306_Puts("Program Sel", &Font_11x18, 1);
+		int start = 0;
+		for (int a = 0; a < s_row; a++){
+			start+=Program_length[a];
+		}
+		for (int num = 0; num < 3; num++){
+			if (num + s_row > Program_Count-1) break;
+			SSD1306_GotoXY(20, 20 + num*16);
+			for (int c = 0; c < Program_length[s_row+num]; c++){
+				SSD1306_Putc(Program_name[c + start], &Font_7x10, 1);
+			}
+			start+=Program_length[num+s_row];
+		}
+		SSD1306_DrawIcon16x16(0, 20-4 + (sel-s_row)*16, arrow_right_icon16x16);
+		SSD1306_UpdateScreen();
+		HAL_Delay(100);
+		while(1){
+			if (!HAL_GPIO_ReadPin(BT_RD_GPIO_Port, BT_RD_Pin)){
+				if (B == 0){
+					sel--;
+					B = 1;
+					break;
+				}
+			} else B = 0;
+			if (!HAL_GPIO_ReadPin(BT_RB_GPIO_Port, BT_RB_Pin)){
+				if (D == 0){
+					sel++;
+					D = 1;
+					break;
+				}
+			} else D = 0;
+			if (!HAL_GPIO_ReadPin(BT_RC_GPIO_Port, BT_RC_Pin)) return sel;
+		}
+		if (sel - 2> s_row) {	// Scroll w dół
+			s_row++;
+		}
+		if (sel < s_row) {		// scroll w górę
+			s_row--;
+		}
+		if (s_row + 3 > Program_Count) {	// Przepełnienie w dół
+			s_row = sel = 0;
+		}
+		if (s_row < 0) {		// Pzrepelnienie w górę
+			s_row = Program_Count-3;
+			sel = Program_Count-1;
+		}
+	}
+}
 
-  /* USER CODE BEGIN SysInit */
+void InitDevice_NRF(){
+	NRF24_begin(CSN_GPIO_Port, CSN_Pin, CE_Pin, hspi1);
+	NRF24_setAutoAck(true);
+	NRF24_setChannel(52);
+	NRF24_setPayloadSize(13);
+	NRF24_openReadingPipe(1, PipeAddres);
+	NRF24_enableDynamicPayloads();
+	NRF24_enableAckPayload();
+	NRF24_startListening();
+}
 
-  /* USER CODE END SysInit */
+void InitDevice_MPU(){
+	MPU_ConfigTypeDef MpuConfig;
+	MPU6050_Init(&hi2c1);
+	MpuConfig.Accel_Full_Scale = AFS_SEL_4g;
+	MpuConfig.ClockSource = Internal_8MHz;
+	MpuConfig.CONFIG_DLPF = DLPF_184A_188G_Hz;
+	MpuConfig.Gyro_Full_Scale = FS_SEL_500;
+	MpuConfig.Sleep_Mode_Bit = 0;
+	MPU6050_Config(&MpuConfig);
+}
+
+void Init_Test(){
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
