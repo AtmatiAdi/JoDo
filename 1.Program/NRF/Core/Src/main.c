@@ -517,13 +517,13 @@ void Serial_Recived(uint8_t* Buf, uint32_t *Len){
 }
 
 // Fast = 0 -> wykona sie rysowanie na ekranie
-// Fast = 1 -> Wykona sie tylko sprawdzenie napiecia beteri
+// Fast = 1 -> Wykona sie tylko sprawdzenie napiecia beterii
 void Update(int Fast){
 	if (HAL_GPIO_ReadPin(VIN_GPIO_Port, VIN_Pin)){
 		// Zasilanie na USB
 		HAL_GPIO_WritePin(ON_GPIO_Port, ON_Pin, 0);
 		if (HAL_GPIO_ReadPin(BT_POWER_GPIO_Port, BT_POWER_Pin)){
-			// Mosfet i tak przeskoczy, pzrerwa w zasilaniu zresetuje procka
+			// Mosfet i tak przeskoczy, przerwa w zasilaniu zresetuje procka
 		}
 		// Ikona zasilania z usb
 		if (Fast < 1){
@@ -637,7 +637,7 @@ int SelectProgram(){
 		if (s_row + 3 > Program_Count) {	// Przepełnienie w dół
 			s_row = sel = 0;
 		}
-		if (s_row < 0) {		// Pzrepelnienie w górę
+		if (s_row < 0) {		// Przepelnienie w górę
 			s_row = Program_Count-3;
 			sel = Program_Count-1;
 		}
@@ -711,8 +711,8 @@ void Loop_SMicromouse(){
 		NRF24_read(RF_RxData, 13);
 		Serial_Send(RF_RxData, 13);
 		NRF24_writeAckPayload(1, RF_TxData, 16);
-		// BARDZO ISTOTNE, I2C i NRF ZAKLUCAJA SIE JAKOS, DLA TEGO DANE ZBIERAMY PO TRANSMISJI NRF
-		// ZAKLUCENIA NADAL WYSTEPUJA ALE ZADZIEJ, JE WYELIMINOWAC TRZEBA INACZEJ ??
+		// BARDZO ISTOTNE, I2C i NRF ZAKLOCAJA SIE JAKOS, DLA TEGO DANE ZBIERAMY PO TRANSMISJI NRF
+		// ZAKLOCENIA NADAL WYSTEPUJA ALE RZADZIEJ, JE WYELIMINOWAC TRZEBA INACZEJ ??
 		// Ustawienie funkcji
 		RF_TxData[0] = 0;
 		int16_t Val[4];
@@ -930,7 +930,7 @@ void Update(){
 		// Zasilanie na USB
 		HAL_GPIO_WritePin(ON_GPIO_Port, ON_Pin, 0);
 		if (HAL_GPIO_ReadPin(BT_POWER_GPIO_Port, BT_POWER_Pin)){
-			// Mosfet i tak przeskoczy, pzrerwa w zasilaniu zresetuje procka
+			// Mosfet i tak przeskoczy, przerwa w zasilaniu zresetuje procka
 		}
 		// Ikona zasilania z usb
 		SSD1306_DrawIcon16x16(0,48, plug_icon16x16);
@@ -1081,7 +1081,7 @@ void Init_Test(){
 
 // Zasilanie
   if (!HAL_GPIO_ReadPin(VIN_GPIO_Port, VIN_Pin)){
-	  // Zasilanie baterynje
+	  // Zasilanie bateryjne
     HAL_GPIO_WritePin(ON_GPIO_Port, ON_Pin, 1);
   }
 // Reanimacja I2C
