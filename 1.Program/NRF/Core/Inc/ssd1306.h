@@ -123,6 +123,10 @@ void SSD1306_Fill(SSD1306_COLOR_t Color);
  */
 void SSD1306_DrawPixel(uint16_t x, uint16_t y, SSD1306_COLOR_t color);
 
+void SSD1306_DrawIcon16x16(int x, int y, char* Icon);
+
+void SSD1306_DrawBitmap(int x, int y, char* BitMap, int width, int height);
+
 /**
  * @brief  Sets cursor pointer to desired location for strings
  * @param  x: X location. This parameter can be a value between 0 and SSD1306_WIDTH - 1
@@ -259,7 +263,7 @@ void ssd1306_I2C_Write(uint8_t address, uint8_t reg, uint8_t data);
  */
 void ssd1306_I2C_WriteMulti(uint8_t address, uint8_t reg, uint8_t *data, uint16_t count);
 
-void SSD1306_StopFadeOutOrBlinking(void);
+
 
 /* C++ detection */
 #ifdef __cplusplus
