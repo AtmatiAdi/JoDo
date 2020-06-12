@@ -24,7 +24,8 @@
 /* USER CODE BEGIN Includes */
 #include "my_usbd_customhid.h"
 #include "my_usbd_custom_hid_if.h"
-
+#include "my_icons.h"
+#include "my_bitmaps.h"
 #include "ssd1306.h"
 #include "i2c-lcd.h"
 #include "string.h"
@@ -39,6 +40,24 @@
 #define FUNC_ACCEL_GYRO_COMBO	130
 
 #define ADS1115_ADDRESS 0x48
+
+char Program_name[] = {
+	'G','a','m','e','p','a','d',
+	'S','M','i','c','r','o','m','o','u','s','e',
+	'T','e','s','t','1',
+	'T','e','s','t','2',
+	'T','e','s','t','3',
+	'T','e','s','t','4'};
+int Program_length[] = {
+	7,
+	11,
+	5,
+	5,
+	5,
+	5,};
+int Program_Count = 6;
+int Program_Running;
+
 char ADSwrite[6];
 
 char Msg[16];
@@ -53,7 +72,6 @@ uint8_t dataToSend[20] = {0x00, 0x14, 0x01, 0xEE, 0x0F, 0x00, 0x0F, 0x00, 0xFF, 
 //                        butns|size|     |     | lt  | rt  | lx        | ly        | rx        | ry        | unused
 //                                    b10 & b9  & b7  & b8  & dr  & dl  & dd  & du
 //
-
 
 int Serial_Send(uint8_t* Buf, uint32_t *Len){
 	CDC_Transmit_FS(Buf, Len);
