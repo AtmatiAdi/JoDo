@@ -590,6 +590,7 @@ int main(void)
 	SSD1306_GotoXY (10, 30);
 	SSD1306_Puts ("WORLD !!", &Font_11x18, 1);
 	SSD1306_UpdateScreen(); //display
+	//SSD1306_StopFadeOutOrBlinking();
 	//while((HAL_I2C_IsDeviceReady (&hi2c1, 0x4E, 10, 100)));
 	//lcd_send_string ("HELLO WORLD !!");
 	//SSD1306_Fill (0);

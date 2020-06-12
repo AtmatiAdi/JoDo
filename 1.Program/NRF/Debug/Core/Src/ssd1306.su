@@ -18,3 +18,4 @@ ssd1306.c:487:6:SSD1306_OFF	8	static
 ssd1306.c:503:6:ssd1306_I2C_Init	16	static
 ssd1306.c:515:6:ssd1306_I2C_WriteMulti	48	dynamic
 ssd1306.c:525:6:ssd1306_I2C_Write	32	static
+ssd1306.c:532:6:SSD1306_StopFadeOutOrBlinking	8	static
