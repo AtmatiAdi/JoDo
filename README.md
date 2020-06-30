@@ -20,3 +20,9 @@ Mikrokontroler STM32F103 przez magistralę UART komunikować się będzie z modu
 Uniwersalność urządzenia zapewniona jest poprzez możliwość wybierania trybów pracy. Tryb wybierany jest z menu  uruchamianego po włączeniu urządzenia. Do nawigacji po menu służą niebieskie przyciski - skrajne do zmiany opcji, a środkowy do zatwierdzenia. Podstawowym trybem jest praca jako gamepad, dodatkowo jednak na potrzeby projektu robota micromouse dodano tryb pracy jako mostek pomiędzy robotem a komputerem. W miarę potrzeb program można rozszerzyć o kolejne funkcje trybów z odpowiednio skonfigurowanymi peryferiami, w zależności od wymagań projektu. Program urządzenia podzielony jest na funkcje programów i na funkcje główne. Funkcje główne są odpowiedzialne za kontrolę urządzenia i inicjalizację modułów. Funkcje programów dzielą się na dwa typy: inicjalizacji i pętli, inicjalizacja wybranego programu sprowadza się do wywołania funkcji inicjalizujących moduły i~peryferia dostarczone przez funkcje główne, jest to umowny poziom abstrakcji. Funkcja petli programu jest rdzeniem programu, nie powinna ona byc nieskończoną pętlą, gdyz sama będzie wywoływana w takiej pętli, wraz z funkcją Update która odpowiedzialna jest za kontrolę baterii i zasilania. Program został zrealizowany w taki sposób, ponieważ nie można jednocześnie skonfigurować HID i interfejsu szeregowego, dalsze projekty mogły by powodowac inne konflikty. Wybór innego trybu pracy możliwy jest jedynie po zresetowaniu urządzenia.
 
 ![GitHub Logo](/sr_szablon_projekt/figures/main.png)
+
+# Linki 
+
+https://youtu.be/tafsixhDsh8 - Prezentacja ukończenia projektu
+
+https://www.overleaf.com/read/fwncyzqsmkhw - Raport końcowy
